@@ -105,13 +105,17 @@ func HandelMsg(p []byte) {
 	switch Msg.MsgType {
 		case "chat":
 			HandelChat(Msg.Msg)
+			break;
 		case "move":
 			HandelMove(Msg.Msg)
+			break;
 		case "bomb":
 			HandelBomb(Msg.Msg)
+			break;
 		default:
 			log.Printf("Unknown message type: %v", Msg.MsgType)
-	}
+			break;
+		}
 }
 
 func HandelChat(msg json.RawMessage){ // for chhattting
