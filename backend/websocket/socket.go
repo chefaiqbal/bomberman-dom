@@ -1,7 +1,7 @@
 package bomber
 
 import (
-    "encoding/json"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -92,51 +92,26 @@ func HandelMsg(p []byte) {
 
 	switch msg.MsgType {
 	case "chat":
-		handleChat(msg.Msg)
+		HandleChat(msg.Msg)
 		break
 	case "move":
-		handleMove(msg.Msg)
+		HandleMove(msg.Msg)
 		break
 	case "bomb":
-		handleBomb(msg.Msg)
+		HandleBomb(msg.Msg)
 		break
+	case "PLAYER_JOIN":
+		log.Printf("Player joined: %s", msg.MsgType)
+		break
+	case "GAME_START":
+		log.Printf("Game started: %s", msg.MsgType)
+		GameStart(clients)
+		break
+	
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
 		break
 	}
-}
-
-func handleChat(msg json.RawMessage) {
-	var chat Chat
-	if err := json.Unmarshal(msg, &chat); err != nil {
-		log.Printf("Failed to unmarshal chat: %v", err)
-		return
-	}
-
-	log.Printf("Chat: %s", chat.Message)
-	broadcastMessage("chat", chat.Message)
-}
-
-func handleMove(msg json.RawMessage) {
-	var move Move
-	if err := json.Unmarshal(msg, &move); err != nil {
-		log.Printf("Failed to unmarshal move: %v", err)
-		return
-	}
-
-	log.Printf("Move: %s", move.Direction)
-	broadcastMessage("move", move)
-}
-
-func handleBomb(msg json.RawMessage) {
-	var bomb Bomb
-	if err := json.Unmarshal(msg, &bomb); err != nil {
-		log.Printf("Failed to unmarshal bomb: %v", err)
-		return
-	}
-
-	log.Printf("Bomb placed at (%d, %d)", bomb.X, bomb.Y)
-	broadcastMessage("bomb", bomb)
 }
 
 func broadcastMessage(msgType string, payload interface{}) {

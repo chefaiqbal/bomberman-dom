@@ -10,7 +10,7 @@ export class WebSocketService {
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             switch (data.msgType) {
-                case 'CHAT':
+                case 'chat':
                     this.handleChatMessage(data.msg);
                     break;
                 case 'PLAYER_JOIN':
@@ -18,6 +18,10 @@ export class WebSocketService {
                     break;
                 case 'GAME_START':
                     this.handleGameStart(data.msg);
+                    break;
+                case "bomb":
+                    break;
+                case "move":
                     break;
             }
         };
