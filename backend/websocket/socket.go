@@ -25,146 +25,139 @@ var (
     clients = make(map[string]*Client) 
     mu      sync.Mutex                
 )
-
 func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
 		return
 	}
-	defer conn.Close()
 
-	clientID := fmt.Sprintf("%d", time.Now().UnixNano())
+	mu.Lock()
+	if len(clients) >= 4 {
+		mu.Unlock()
+		conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(4000, "max players reached"),
+			time.Now().Add(time.Second),
+		)
+		conn.Close()
+		return
+	}
 
 	client := &Client{
 		conn: conn,
-		ID:   clientID,
+		ID:   fmt.Sprintf("%d", time.Now().UnixNano()),
 	}
+	clients[client.ID] = client
+	mu.Unlock()
 
-	mu.Lock()
+	defer func() {
+		mu.Lock()
+		delete(clients, client.ID)
+		mu.Unlock()
+		conn.Close()
+	}()
 
-	if len(clients) >= 4 {
-		mu.Unlock() 
-		conn.WriteMessage(websocket.TextMessage, []byte("max number of players reached."))
+	if err := conn.WriteJSON(map[string]string{
+		"type":    "connection",
+		"message": "Connected successfully",
+	}); err != nil {
+		log.Printf("Initial write error: %v", err)
 		return
 	}
 
-	clients[clientID] = client
-	numClients := len(clients)
-	mu.Unlock()
-
-	conn.WriteMessage(websocket.TextMessage, []byte("Connected successfully."))
-
-	for {
-		mu.Lock()
-		numClients = len(clients)
-		mu.Unlock()
-
-		if numClients >= 2 {
-			break 
-		}
-
-		time.Sleep(1 * time.Second)
-	}
-
-	go reader(conn) 
+	reader(conn)
 }
 
-
-
-func reader(conn *websocket.Conn) { // listen for new messages
-    for {
-
-        messageType, p, err := conn.ReadMessage() 
-        if err != nil {
-            log.Println(err)
-            return
-        }
+func reader(conn *websocket.Conn) {
+	for {
+		_, p, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+				log.Printf("Connection closed unexpectedly: %v", err)
+			}
+			break
+		}
 
 		HandelMsg(p)
-
-
-        fmt.Println(string(p))
-
-        if err := conn.WriteMessage(messageType, p); err != nil {
-            log.Println(err)
-            return
-        }
-
-    }
+	}
 }
 
 func HandelMsg(p []byte) {
+	var msg Msg
+	if err := json.Unmarshal(p, &msg); err != nil {
+		log.Printf("Failed to unmarshal base message: %v", err)
+		return
+	}
 
-	var Msg Msg
-	if err := json.Unmarshal(p, &Msg); err != nil {
-        log.Printf("Failed to unmarshal base message: %v", err)
-        return
-    }
-
-	switch Msg.MsgType {
-		case "chat":
-			HandelChat(Msg.Msg)
-			break;
-		case "move":
-			HandelMove(Msg.Msg)
-			break;
-		case "bomb":
-			HandelBomb(Msg.Msg)
-			break;
-		default:
-			log.Printf("Unknown message type: %v", Msg.MsgType)
-			break;
-		}
+	switch msg.MsgType {
+	case "chat":
+		handleChat(msg.Msg)
+		break
+	case "move":
+		handleMove(msg.Msg)
+		break
+	case "bomb":
+		handleBomb(msg.Msg)
+		break
+	default:
+		log.Printf("Unknown message type: %v", msg.MsgType)
+		break
+	}
 }
 
-func HandelChat(msg json.RawMessage){ // for chhattting
+func handleChat(msg json.RawMessage) {
 	var chat Chat
-
 	if err := json.Unmarshal(msg, &chat); err != nil {
-		log.Printf("Failed to unmarshal chat message: %v", err)
+		log.Printf("Failed to unmarshal chat: %v", err)
 		return
 	}
 
-	log.Printf("Chat message: %v", chat.Message)
-
-	broadcast([]byte(chat.Message)) // send it to all users 
-
+	log.Printf("Chat: %s", chat.Message)
+	broadcastMessage("chat", chat.Message)
 }
 
-
-func HandelMove(msg json.RawMessage){ // for moving 
+func handleMove(msg json.RawMessage) {
 	var move Move
-
 	if err := json.Unmarshal(msg, &move); err != nil {
-		log.Printf("Failed to unmarshal move message: %v", err)
+		log.Printf("Failed to unmarshal move: %v", err)
 		return
 	}
 
-	log.Printf("Move message: %v", move)
-
+	log.Printf("Move: %s", move.Direction)
+	broadcastMessage("move", move)
 }
 
-func HandelBomb(msg json.RawMessage){ // for bombing
+func handleBomb(msg json.RawMessage) {
 	var bomb Bomb
-
 	if err := json.Unmarshal(msg, &bomb); err != nil {
-		log.Printf("Failed to unmarshal bomb message: %v", err)
+		log.Printf("Failed to unmarshal bomb: %v", err)
 		return
 	}
 
-	log.Printf("Bomb message: %v", bomb)
-	
+	log.Printf("Bomb placed at (%d, %d)", bomb.X, bomb.Y)
+	broadcastMessage("bomb", bomb)
 }
 
-func broadcast(msg []byte) {
+func broadcastMessage(msgType string, payload interface{}) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	for _, c := range clients {
-		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			log.Printf("Failed to send message to client: %v", err)
-			return
+	if len(clients) == 0 {
+		return
+	}
+
+	message := struct {
+		Type string      `json:"type"`
+		Data interface{} `json:"data"`
+	}{
+		Type: msgType,
+		Data: payload,
+	}
+
+	for _, client := range clients {
+		if err := client.conn.WriteJSON(message); err != nil {
+			log.Printf("Broadcast error: %v", err)
 		}
 	}
 }
