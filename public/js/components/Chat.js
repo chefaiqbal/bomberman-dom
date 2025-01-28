@@ -1,6 +1,6 @@
 import { createElement } from '../core/dom.js';
 
-export function Chat({ store }) {
+export function Chat({ store, ws }) {
     const state = store.getState();
 
     function sendMessage(e) {
@@ -9,13 +9,8 @@ export function Chat({ store }) {
         const message = input.value.trim();
         
         if (message) {
-            store.setState({
-                ...state,
-                messages: [...(state.messages || []), {
-                    id: Date.now(),
-                    player: state.playerName,
-                    text: message
-                }]
+            ws.sendMessage('CHAT', {
+                message: message
             });
             input.value = '';
         }

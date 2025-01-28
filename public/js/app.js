@@ -1,16 +1,21 @@
 import { createRouter, createStore, render } from './core/index.js';
 import { Lobby } from './components/Lobby.js';
+import { NicknameScreen } from './components/NicknameScreen.js';
+import { WebSocketService } from './utils/websocket.js';
 
 const initialState = {
     playerId: Math.random().toString(36).substring(7),
-    playerName: 'Player ' + Math.floor(Math.random() * 1000),
+    playerName: '',
+    isAuthenticated: false,
     players: [],
     messages: [],
     gameStartTimer: null,
-    currentGame: null
+    currentGame: null,
+    wsConnected: false
 };
 
 const store = createStore(initialState);
+const ws = new WebSocketService(store);
 const appElement = document.getElementById('app');
 
 // Timer logic for game start
@@ -38,12 +43,30 @@ store.subscribe((state) => {
 });
 
 const router = createRouter({
-    '/': () => render(Lobby({ store }), appElement),
-    '/lobby': () => render(Lobby({ store }), appElement),
+    '/': () => {
+        const state = store.getState();
+        if (state.isAuthenticated) {
+            router.navigate('/lobby');
+        } else {
+            render(NicknameScreen({ store, router, ws }), appElement);
+        }
+    },
+    '/lobby': () => {
+        const state = store.getState();
+        if (!state.isAuthenticated) {
+            router.navigate('/');
+            return;
+        }
+        render(Lobby({ store, router, ws }), appElement);
+    },
     '/game': () => {
-        // Game component will be handled here
+        const state = store.getState();
+        if (!state.isAuthenticated) {
+            router.navigate('/');
+            return;
+        }
         console.log('Starting game...');
     }
 });
 
-router.navigate('/lobby');
+router.navigate('/');

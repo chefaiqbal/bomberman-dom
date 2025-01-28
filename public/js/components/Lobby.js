@@ -1,8 +1,24 @@
 import { createElement } from '../core/dom.js';
 import { Chat } from './Chat.js';
 
-export function Lobby({ store }) {
+export function Lobby({ store, router, ws }) {
     const state = store.getState();
+    
+    if (!state.isAuthenticated) {
+        router.navigate('/');
+        return null;
+    }
+
+    // Send player join message when entering lobby
+    if (!state.wsConnected) {
+        ws.sendMessage('PLAYER_JOIN', {
+            id: state.playerId,
+            x: 0,
+            y: 0,
+            lives: 3
+        });
+        store.setState({ ...state, wsConnected: true });
+    }
 
     function renderPlayersList() {
         return createElement('div', { class: 'bg-white rounded-lg shadow p-6 space-y-4' },
@@ -33,10 +49,15 @@ export function Lobby({ store }) {
     return createElement('div', { class: 'container mx-auto px-4 py-8' },
         createElement('div', { class: 'flex justify-between items-center mb-8' },
             createElement('h1', { class: 'text-4xl font-bold text-gray-900' }, 'Bomberman Lobby'),
+            createElement('div', { class: 'flex items-center gap-4' },
+                createElement('span', { class: 'text-lg text-gray-600' }, 
+                    `Playing as: ${state.playerName}`
+                )
+            )
         ),
         createElement('div', { class: 'grid grid-cols-1 lg:grid-cols-3 gap-8' },
             createElement('div', { class: 'lg:col-span-2' }, renderPlayersList()),
-            createElement('div', { class: 'lg:col-span-1' }, Chat({ store }))
+            createElement('div', { class: 'lg:col-span-1' }, Chat({ store, ws }))
         )
     );
 }

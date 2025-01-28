@@ -1,37 +1,57 @@
-export function initializeWebSocket(store) {
-    const ws = new WebSocket(`ws://${window.location.host}/ws`);
-    
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        switch(data.type) {
-            case 'players_update':
-                store.setState({ 
-                    ...store.getState(), 
-                    players: data.players 
-                });
-                break;
-            
-            case 'chat_message':
-                const state = store.getState();
-                store.setState({
-                    ...state,
-                    messages: [...state.messages, data.message]
-                });
-                break;
-        }
-    };
+export class WebSocketService {
+    constructor(store) {
+        this.store = store;
+        const state = store.getState();
+        this.ws = new WebSocket(`ws://${window.location.host}/ws?id=${state.playerId}`);
+        this.setupEventHandlers();
+    }
 
-    ws.onopen = () => {
-        // Send initial player info
-        ws.send(JSON.stringify({
-            type: 'player_join',
-            player: {
-                id: store.getState().playerId,
-                name: store.getState().playerName
+    setupEventHandlers() {
+        this.ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            switch (data.msgType) {
+                case 'CHAT':
+                    this.handleChatMessage(data.msg);
+                    break;
+                case 'PLAYER_JOIN':
+                    this.handlePlayerUpdate(data.msg);
+                    break;
+                case 'GAME_START':
+                    this.handleGameStart(data.msg);
+                    break;
             }
-        }));
-    };
+        };
+    }
 
-    return ws;
+    sendMessage(type, payload) {
+        if (this.ws.readyState === WebSocket.OPEN) {
+            const message = {
+                msgType: type.toUpperCase(),
+                msg: payload
+            };
+            this.ws.send(JSON.stringify(message));
+        }
+    }
+
+    handleChatMessage(msg) {
+        const state = this.store.getState();
+        this.store.setState({
+            ...state,
+            messages: [...state.messages, msg]
+        });
+    }
+
+    handlePlayerUpdate(players) {
+        this.store.setState({
+            ...this.store.getState(),
+            players: players
+        });
+    }
+
+    handleGameStart(gameData) {
+        this.store.setState({
+            ...this.store.getState(),
+            currentGame: gameData
+        });
+    }
 }
