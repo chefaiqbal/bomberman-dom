@@ -1,3 +1,10 @@
+export const initialState = {
+    playerId: Math.random().toString(36).substring(7),
+    playerName: 'Player ' + Math.floor(Math.random() * 1000),
+    games: [],
+    currentGame: null
+};
+
 export function createStore(initialState) {
     let state = initialState;
     const listeners = [];
@@ -21,4 +28,3 @@ export function createStore(initialState) {
   
     return { getState, setState, subscribe };
   }
-  
