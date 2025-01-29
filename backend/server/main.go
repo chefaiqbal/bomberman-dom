@@ -72,6 +72,10 @@ func main() {
         log.Fatal(err)
     }
 
+    staticDir := filepath.Join(absPublicDir, "static")
+	fs := http.FileServer(http.Dir(staticDir))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
     // Create spa handler
     spa := &spaHandler{staticPath: absPublicDir, indexPath: "index.html"}
 
