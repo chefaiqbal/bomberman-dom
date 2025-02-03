@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"time"
+	
+	"github.com/gorilla/websocket"
 )
 
 func GameStart(currentClients map[string]*Client) {
@@ -12,6 +14,37 @@ func GameStart(currentClients map[string]*Client) {
 		log.Println("Game Start")
 
 	}
+}
+
+func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocket.Conn) {
+    var player Player
+    if err := json.Unmarshal(msg, &player); err != nil {
+        log.Printf("Failed to unmarshal player: %v", err)
+        return
+    }
+
+    log.Printf("Player joined with name: %s", player.ID)
+
+    // Ensure client is initialized properly with WebSocket connection
+    client := &Client{
+        conn: conn,  // Associate the correct WebSocket connection here
+        ID:   player.ID,  
+    }
+
+    mu.Lock()
+    (*clients)[client.ID] = client
+    mu.Unlock()
+
+    // Prepare the updated list of clients
+    var clientList []Client
+    mu.Lock()
+    for _, c := range *clients {
+        clientList = append(clientList, *c)
+    }
+    mu.Unlock()
+
+    // Broadcast the updated list to all connected clients
+    broadcastMessage("PLAYER_JOIN", clientList)
 }
 
 func HandleChat(msg json.RawMessage) {

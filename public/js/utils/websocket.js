@@ -1,28 +1,45 @@
 export class WebSocketService {
     constructor(store) {
         this.store = store;
-        const state = store.getState();
-        this.ws = new WebSocket(`ws://${window.location.host}/ws?id=${state.playerId}`);
+        this.ws = new WebSocket(`ws://localhost:8080/ws`);
         this.setupEventHandlers();
     }
 
     setupEventHandlers() {
+        this.ws.onopen = () => {
+            console.log("WebSocket connection established.");
+        };
+
+        this.ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+
+        this.ws.onclose = (event) => {
+            console.log("WebSocket connection closed:", event);
+        };
+
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            switch (data.msgType) {
+            console.log("Received WebSocket message:", data); // Add a log to debug incoming messages.
+            
+            switch (data.type) {
                 case 'chat':
-                    this.handleChatMessage(data.msg);
+                    this.handleChatMessage(data.data);
                     break;
                 case 'PLAYER_JOIN':
-                    this.handlePlayerUpdate(data.msg);
+                    this.handlePlayerUpdate(data.data);
                     break;
                 case 'GAME_START':
-                    this.handleGameStart(data.msg);
+                    this.handleGameStart(data.data);
                     break;
                 case "bomb":
+                    // Handle bomb logic if needed.
                     break;
                 case "move":
+                    // Handle move logic if needed.
                     break;
+                default:
+                    console.warn("Unknown message type:", data.type);
             }
         };
     }
@@ -46,6 +63,7 @@ export class WebSocketService {
     }
 
     handlePlayerUpdate(players) {
+        console.log("Updating players list", players);
         this.store.setState({
             ...this.store.getState(),
             players: players
@@ -59,3 +77,5 @@ export class WebSocketService {
         });
     }
 }
+
+

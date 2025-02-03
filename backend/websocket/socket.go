@@ -16,58 +16,62 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-type Client struct{
+type Client struct {
 	conn *websocket.Conn
-	ID string
+	ID   string
 }
 
 var (
-    clients = make(map[string]*Client) 
-    mu      sync.Mutex                
+	clients = make(map[string]*Client)
+	mu      sync.Mutex
 )
+
 func WsEndpoint(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
-		return
-	}
+    conn, err := upgrader.Upgrade(w, r, nil)
+    if err != nil {
+        http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
+        return
+    }
 
-	mu.Lock()
-	if len(clients) >= 4 {
-		mu.Unlock()
-		conn.WriteControl(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(4000, "max players reached"),
-			time.Now().Add(time.Second),
-		)
-		conn.Close()
-		return
-	}
+    mu.Lock()
+    if len(clients) >= 4 {
+        mu.Unlock()
+        conn.WriteControl(
+            websocket.CloseMessage,
+            websocket.FormatCloseMessage(4000, "max players reached"),
+            time.Now().Add(time.Second),
+        )
+        conn.Close()
+        return
+    }
 
-	client := &Client{
-		conn: conn,
-		ID:   fmt.Sprintf("%d", time.Now().UnixNano()),
-	}
-	clients[client.ID] = client
-	mu.Unlock()
+    client := &Client{
+        conn: conn,
+        ID:   fmt.Sprintf("%d", time.Now().UnixNano()),
+    }
 
-	defer func() {
-		mu.Lock()
-		delete(clients, client.ID)
-		mu.Unlock()
-		conn.Close()
-	}()
+    clients[client.ID] = client
+    mu.Unlock()
 
-	if err := conn.WriteJSON(map[string]string{
-		"type":    "connection",
-		"message": "Connected successfully",
-	}); err != nil {
-		log.Printf("Initial write error: %v", err)
-		return
-	}
+    defer func() {
+        mu.Lock()
+        delete(clients, client.ID)
+        mu.Unlock()
+        conn.Close()
+    }()
 
-	reader(conn)
+    if err := conn.WriteJSON(map[string]string{
+        "type":    "connection",
+        "message": "Connected successfully",
+    }); err != nil {
+        log.Printf("Initial write error: %v", err)
+        return
+    }
+
+    reader(conn)
 }
+
+
 
 func reader(conn *websocket.Conn) {
 	for {
@@ -79,11 +83,11 @@ func reader(conn *websocket.Conn) {
 			break
 		}
 
-		HandelMsg(p)
+		HandelMsg(p, conn)
 	}
 }
 
-func HandelMsg(p []byte) {
+func HandelMsg(p []byte, conn *websocket.Conn) {
 	var msg Msg
 	if err := json.Unmarshal(p, &msg); err != nil {
 		log.Printf("Failed to unmarshal base message: %v", err)
@@ -91,26 +95,20 @@ func HandelMsg(p []byte) {
 	}
 
 	switch msg.MsgType {
-	case "chat":
+	case "CHAT":
 		HandleChat(msg.Msg)
-		break
-	case "move":
+	case "MOVE":
 		HandleMove(msg.Msg)
-		break
-	case "bomb":
+	case "BOMB":
 		HandleBomb(msg.Msg)
-		break
 	case "PLAYER_JOIN":
 		log.Printf("Player joined: %s", msg.MsgType)
-		break
+		HandelJoin(msg.Msg, &clients, conn)  // Pass the clients map
 	case "GAME_START":
 		log.Printf("Game started: %s", msg.MsgType)
 		GameStart(clients)
-		break
-	
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
-		break
 	}
 }
 

@@ -12,7 +12,7 @@ export function Lobby({ store, router, ws }) {
     // Send player join message when entering lobby
     if (!state.wsConnected) {
         ws.sendMessage('PLAYER_JOIN', {
-            id: state.playerId,
+            id: state.playerName,
             x: 0,
             y: 0,
             lives: 3
