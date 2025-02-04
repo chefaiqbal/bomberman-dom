@@ -1,8 +1,9 @@
 
 import { createElement,render } from "../core/dom.js";
 
-  const blockPath = '/static/img/block.png';
-  const wallPath = '/static/img/wall.png'
+  const blockPath = '/static/img/Bwall.png';
+  const wallPath = '/static/img/wall.png';
+  const floorPath = '/static/img/floor.png';
 const temp = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 1],
@@ -16,15 +17,15 @@ const temp = [
     [1, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   ];
-  
-  function generateMap() {
+
+  export function generateMap() {
     return temp.map(row =>
       row.map(cell => (cell === 0 && Math.random() > 0.2 ? 2 : cell)) 
     );
   }
 ;
 
-  function renderMap(map) {
+export function renderMap(map) {
     return createElement(
       'div',
       { class: 'map', style: 'display: grid; grid-template-columns: repeat(15, 60px);  grid-template-rows: repeat(11, 60px); ' },
@@ -42,8 +43,8 @@ const temp = [
     );
   }
   
-  const map= generateMap();
-  const mapElement = renderMap(map);
-  const container = document.getElementById('game-container');
-  render(mapElement, container);
+  // const map= generateMap();
+  // const mapElement = renderMap(map);
+  // const container = document.getElementById('game-container');
+  // render(mapElement, container);
   

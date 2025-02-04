@@ -1,5 +1,6 @@
 import { createElement, render } from "../core/dom.js";
 import { renderMap, generateMap } from "../game/Map.js";
+import { renderPlayer } from "../game/Player.js"; 
 
 function createPlayerList(players) {
     return createElement(
@@ -92,6 +93,7 @@ function GameBoard() {
                 },
                 [renderMap(generateMap())]
             ),
+            renderPlayer(),
             createPlayerList(players),
             createTimer(),
             createPlayerLives()
