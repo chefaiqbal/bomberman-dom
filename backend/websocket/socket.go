@@ -2,7 +2,6 @@ package bomber
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -47,10 +46,8 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 
     client := &Client{
         conn: conn,
-        ID:   fmt.Sprintf("%d", time.Now().UnixNano()),
     }
 
-    clients[client.ID] = client
     mu.Unlock()
 
     defer func() {
