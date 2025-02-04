@@ -31,7 +31,7 @@ function createPlayerList(players) {
                             createElement('div',
                                 {
                                     class: 'heart',
-                                    style: 'width: 20px; height: 20px; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
+                                    style: 'width: 20px; height: 20px; border: 1px solid red; background: url(public/static/img/livesheart.webp) no-repeat center; background-size: contain;'
                                 }
                             )
                         )
@@ -47,7 +47,7 @@ function createTimer() {
         'div',
         {
             class: 'timer',
-            style: 'position: absolute; right: 20px; top: 20px; color: white; font-size: 24px;'
+            style: 'position: absolute; right: 60px; top: 20px; color: white; font-size: 24px;'
         },
         '01:00'
     );
@@ -58,14 +58,14 @@ function createPlayerLives() {
         'div',
         {
             class: 'player-lives',
-            style: 'position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;'
+            style: 'position: absolute; right: 20px; top: 60px; display: flex; gap: 10px;'
         },
         Array(3).fill().map(() =>
             createElement('div',
                 {
                     class: 'heart-large',
-                    style: 'width: 40px; height: 40px; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
-                }
+                    style: 'width: 40px; height: 40px; border: 1px solid red; background: url(public/static/img/livesheart.webp) no-repeat center; background-size: contain;'
+                } 
             )
         )
     );
