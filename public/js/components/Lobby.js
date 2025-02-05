@@ -11,8 +11,7 @@ export function Lobby({ store, router, ws }) {
 
     if (!state.wsConnected) {
         ws.sendMessage('PLAYER_JOIN', {
-            id: state.playerId,
-            name: state.playerName,
+            id: state.playerName,
             x: 0,
             y: 0,
             lives: 3
