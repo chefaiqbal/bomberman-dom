@@ -1,6 +1,7 @@
 export class WebSocketService {
-    constructor(store) {
+    constructor(store, router) {
         this.store = store;
+        this.router = router;
         this.ws = new WebSocket(`ws://localhost:8080/ws`);
         this.setupEventHandlers();
     }
@@ -24,6 +25,7 @@ export class WebSocketService {
 
             if (data.status === "wait" && data.redirect) {
                 console.log("Redirecting player to", data.redirect);
+                this.router.navigate("/wait");
                 return;
             }
 

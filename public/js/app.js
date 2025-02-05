@@ -1,4 +1,4 @@
-import { createRouter, createStore, render } from './core/index.js';
+import { createRouter, createStore, render, createElement } from './core/index.js';
 import { Lobby } from './components/Lobby.js';
 import { NicknameScreen } from './components/NicknameScreen.js';
 import { WebSocketService } from './utils/websocket.js';
@@ -16,35 +16,7 @@ const initialState = {
 };
 
 const store = createStore(initialState);
-const ws = new WebSocketService(store);
-const appElement = document.getElementById('app');
 
-// Timer logic for game start
-function startGameTimer() {
-    let timeLeft = 10; // 10 second countdown
-    store.setState({ ...store.getState(), gameStartTimer: timeLeft });
-    
-    const timer = setInterval(() => {
-        timeLeft--;
-        store.setState({ ...store.getState(), gameStartTimer: timeLeft });
-        
-        if (timeLeft <= 0) {
-            clearInterval(timer);
-
-            ws.sendMessage('GAME_STARTED', {});
-
-            // Navigate to game when timer ends
-            router.navigate('/game');
-        }
-    }, 1000);
-}
-
-// Watch for player count changes
-store.subscribe((state) => {
-    if (state.players.length >= 2 && !state.gameStartTimer) {
-        startGameTimer();
-    }
-});
 
 const router = createRouter({
     '/': () => {
@@ -76,10 +48,40 @@ const router = createRouter({
         render(createElement('div', { class: 'min-h-screen flex items-center justify-center bg-gray-100' },
             createElement('div', { class: 'max-w-md w-full bg-white rounded-lg shadow-lg p-8' },
                 createElement('h1', { class: 'text-3xl font-bold text-center mb-8 text-gray-800' }, 
-                    'Waiting for more players...'
+                    'Wait until game Done...'
                 )
             )
         ), appElement);
+    }
+});
+
+const ws = new WebSocketService(store, router);
+const appElement = document.getElementById('app');
+
+// Timer logic for game start
+function startGameTimer() {
+    let timeLeft = 10; // 10 second countdown
+    store.setState({ ...store.getState(), gameStartTimer: timeLeft });
+    
+    const timer = setInterval(() => {
+        timeLeft--;
+        store.setState({ ...store.getState(), gameStartTimer: timeLeft });
+        
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+
+            ws.sendMessage('GAME_STARTED', {});
+
+            // Navigate to game when timer ends
+            router.navigate('/game');
+        }
+    }, 1000);
+}
+
+// Watch for player count changes
+store.subscribe((state) => {
+    if (state.players.length >= 2 && !state.gameStartTimer) {
+        startGameTimer();
     }
 });
 
