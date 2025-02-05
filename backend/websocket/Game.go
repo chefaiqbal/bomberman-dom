@@ -3,18 +3,26 @@ package bomber
 import (
 	"encoding/json"
 	"log"
-	"time"
 	
 	"github.com/gorilla/websocket"
 )
 
-func GameStart(currentClients map[string]*Client) {
-	if len(clients) > 1{
-		time.Sleep(20 * time.Second)
-		log.Println("Game Start")
+var gameStarted = false
 
+func GameStart() {
+	gameStarted = true
+}
+
+func sendWaitResponse(conn *websocket.Conn) {
+	response := map[string]string{
+		"status":   "wait",
+		"redirect": "/wait",
+	}
+	if err := conn.WriteJSON(response); err != nil {
+		log.Printf("Failed to send wait response: %v", err)
 	}
 }
+
 
 func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocket.Conn) {
     var player Player
@@ -22,6 +30,15 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
         log.Printf("Failed to unmarshal player: %v", err)
         return
     }
+
+	mu.Lock()
+	if gameStarted {
+		mu.Unlock()
+		log.Printf("Player %s tried to join, but game already started. Redirecting to /wait", player.ID)
+		sendWaitResponse(conn)
+		return
+	}
+	mu.Unlock()
 
     log.Printf("Player joined with name: %s", player.ID)
 

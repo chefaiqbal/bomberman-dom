@@ -20,8 +20,13 @@ export class WebSocketService {
 
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log("Received WebSocket message:", data); // Add a log to debug incoming messages.
-            
+            console.log("Received WebSocket message:", data);
+
+            if (data.status === "wait" && data.redirect) {
+                console.log("Redirecting player to", data.redirect);
+                return;
+            }
+
             switch (data.type) {
                 case 'chat':
                     this.handleChatMessage(data.data);
@@ -33,10 +38,8 @@ export class WebSocketService {
                     this.handleGameStart(data.data);
                     break;
                 case "bomb":
-                    // Handle bomb logic if needed.
                     break;
                 case "move":
-                    // Handle move logic if needed.
                     break;
                 default:
                     console.warn("Unknown message type:", data.type);
@@ -77,5 +80,3 @@ export class WebSocketService {
         });
     }
 }
-
-

@@ -12,7 +12,7 @@ const initialState = {
     messages: [],
     gameStartTimer: null,
     currentGame: null,
-    wsConnected: false
+    wsConnected: false,
 };
 
 const store = createStore(initialState);
@@ -30,6 +30,9 @@ function startGameTimer() {
         
         if (timeLeft <= 0) {
             clearInterval(timer);
+
+            ws.sendMessage('GAME_STARTED', {});
+
             // Navigate to game when timer ends
             router.navigate('/game');
         }
@@ -68,6 +71,15 @@ const router = createRouter({
         }
         render(GameBoard({ store, router, ws }), appElement);
         console.log('Starting game...');
+    },
+    '/wait': () => {
+        render(createElement('div', { class: 'min-h-screen flex items-center justify-center bg-gray-100' },
+            createElement('div', { class: 'max-w-md w-full bg-white rounded-lg shadow-lg p-8' },
+                createElement('h1', { class: 'text-3xl font-bold text-center mb-8 text-gray-800' }, 
+                    'Waiting for more players...'
+                )
+            )
+        ), appElement);
     }
 });
 

@@ -101,9 +101,9 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 	case "PLAYER_JOIN":
 		log.Printf("Player joined: %s", msg.MsgType)
 		HandelJoin(msg.Msg, &clients, conn)  
-	case "GAME_START":
+	case "GAME_STARTED":
 		log.Printf("Game started: %s", msg.MsgType)
-		GameStart(clients)
+		GameStart()
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
 	}
