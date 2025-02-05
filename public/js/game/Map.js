@@ -1,5 +1,7 @@
 
 import { createElement,render } from "../core/dom.js";
+import { renderPlayer } from "../game/Player.js"; 
+
 
   const blockPath = '/static/img/Bwall.png';
   const wallPath = '/static/img/wall.png';
@@ -39,8 +41,10 @@ export function renderMap(map) {
           }
           return createElement('div', { class: 'empty', style: 'width: 60px; height: 60px; background: green;' });
         })
-      )
-    );
+      ), renderPlayer()
+    );        
+   
+  
   }
   
   // const map= generateMap();

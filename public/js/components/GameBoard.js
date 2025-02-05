@@ -1,6 +1,5 @@
 import { createElement, render } from "../core/dom.js";
 import { renderMap, generateMap } from "../game/Map.js";
-import { renderPlayer } from "../game/Player.js"; 
 
 function createPlayerList(players) {
     return createElement(
@@ -71,7 +70,7 @@ function createPlayerLives() {
     );
 }
 
-function GameBoard() {
+export function GameBoard( { store, router, ws }) {
     const players = [
         { name: 'Player 1' },
         { name: 'Player 2' },
@@ -93,7 +92,6 @@ function GameBoard() {
                 },
                 [renderMap(generateMap())]
             ),
-            renderPlayer(),
             createPlayerList(players),
             createTimer(),
             createPlayerLives()
@@ -101,6 +99,6 @@ function GameBoard() {
     );
 }
 
-const gameBoard = GameBoard();
-const container = document.getElementById('game-container');
-render(gameBoard, container);
+// const gameBoard = GameBoard();
+// const container = document.getElementById('app');
+// render(gameBoard, container);

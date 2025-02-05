@@ -2,6 +2,7 @@ import { createRouter, createStore, render } from './core/index.js';
 import { Lobby } from './components/Lobby.js';
 import { NicknameScreen } from './components/NicknameScreen.js';
 import { WebSocketService } from './utils/websocket.js';
+import { GameBoard } from './components/GameBoard.js';
 
 const initialState = {
     playerId: Math.random().toString(36).substring(7),
@@ -65,6 +66,7 @@ const router = createRouter({
             router.navigate('/');
             return;
         }
+        render(GameBoard({ store, router, ws }), appElement);
         console.log('Starting game...');
     }
 });
