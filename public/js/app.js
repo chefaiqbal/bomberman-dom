@@ -58,21 +58,19 @@ const router = createRouter({
 const ws = new WebSocketService(store, router);
 const appElement = document.getElementById('app');
 
+let gameTimer = null;
 // Timer logic for game start
 function startGameTimer() {
+     if (gameTimer) return;
     let timeLeft = 10; // 10 second countdown
     store.setState({ ...store.getState(), gameStartTimer: timeLeft });
-    
     const timer = setInterval(() => {
         timeLeft--;
-        store.setState({ ...store.getState(), gameStartTimer: timeLeft });
-        
+        store.setState({ ...store.getState(), gameStartTimer: timeLeft });     
         if (timeLeft <= 0) {
             clearInterval(timer);
-
-            ws.sendMessage('GAME_STARTED', {});
-
             // Navigate to game when timer ends
+            gameTimer = null;
             router.navigate('/game');
         }
     }, 1000);
@@ -80,7 +78,7 @@ function startGameTimer() {
 
 // Watch for player count changes
 store.subscribe((state) => {
-    if (state.players.length >= 2 && !state.gameStartTimer) {
+    if (state.players.length >= 2 && state.gameStartTimer===null) {
         startGameTimer();
     }
 });
