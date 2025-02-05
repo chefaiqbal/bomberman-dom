@@ -100,7 +100,7 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 		HandleBomb(msg.Msg)
 	case "PLAYER_JOIN":
 		log.Printf("Player joined: %s", msg.MsgType)
-		HandelJoin(msg.Msg, &clients, conn)  // Pass the clients map
+		HandelJoin(msg.Msg, &clients, conn)  
 	case "GAME_START":
 		log.Printf("Game started: %s", msg.MsgType)
 		GameStart(clients)

@@ -25,9 +25,8 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 
     log.Printf("Player joined with name: %s", player.ID)
 
-    // Ensure client is initialized properly with WebSocket connection
     client := &Client{
-        conn: conn,  // Associate the correct WebSocket connection here
+        conn: conn, 
         ID:   player.ID,  
     }
 
@@ -35,7 +34,6 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
     (*clients)[client.ID] = client
     mu.Unlock()
 
-    // Prepare the updated list of clients
     var clientList []Client
     mu.Lock()
     for _, c := range *clients {
@@ -43,7 +41,6 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
     }
     mu.Unlock()
 
-    // Broadcast the updated list to all connected clients
     broadcastMessage("PLAYER_JOIN", clientList)
 }
 
