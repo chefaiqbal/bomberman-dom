@@ -30,7 +30,7 @@ function createPlayerList(players) {
                             createElement('div',
                                 {
                                     class: 'heart',
-                                    style: 'width: 20px; height: 20px; border: 1px solid red; background: url(public/static/img/livesheart.webp) no-repeat center; background-size: contain;'
+                                    style: 'width: 20px; height: 20px; border: 1px solid red; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
                                 }
                             )
                         )
@@ -63,7 +63,7 @@ function createPlayerLives() {
             createElement('div',
                 {
                     class: 'heart-large',
-                    style: 'width: 40px; height: 40px; border: 1px solid red; background: url(public/static/img/livesheart.webp) no-repeat center; background-size: contain;'
+                    style: 'width: 40px; height: 40px; border: 1px solid red; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
                 } 
             )
         )
