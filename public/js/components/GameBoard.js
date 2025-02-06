@@ -46,7 +46,7 @@ function createTimer() {
         'div',
         {
             class: 'timer',
-            style: 'position: absolute; right: 60px; top: 20px; color: white; font-size: 24px;'
+            style: 'position: absolute; right: 100px; top: 20px; color: white; font-size: 24px;'
         },
         '01:00'
     );
@@ -57,7 +57,7 @@ function createPlayerLives() {
         'div',
         {
             class: 'player-lives',
-            style: 'position: absolute; right: 20px; top: 60px; display: flex; gap: 10px;'
+            style: 'position: absolute; right: 60px; top: 60px; display: flex; gap: 10px;'
         },
         Array(3).fill().map(() =>
             createElement('div',
@@ -70,13 +70,15 @@ function createPlayerLives() {
     );
 }
 
-export function GameBoard( { store, router, ws }) {
+export function GameBoard({ store, router, ws }) {
+    const currentState = store.getState();
+    const currentPlayerName = currentState.playerName;
+    const otherPlayers = currentState.connectedPlayers || [];
+
     const players = [
-        { name: 'Player 1' },
-        { name: 'Player 2' },
-        { name: 'Player 3' },
-        { name: 'Player 4' }
-    ];
+        { name: currentPlayerName }, // Current player always first
+        ...otherPlayers.map(player => ({ name: player.nickname }))
+    ].filter(player => player.name); 
 
     return createElement(
         'div',
@@ -98,6 +100,8 @@ export function GameBoard( { store, router, ws }) {
         ]
     );
 }
+
+
 
 // const gameBoard = GameBoard();
 // const container = document.getElementById('app');
