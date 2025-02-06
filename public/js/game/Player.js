@@ -1,8 +1,9 @@
-import { createElement, render } from "../core/index.js";
-let x = 100, y = 100;
-const speed = 64;
-let frameIndex = 0;
-let direction = 0;
+import { createElement, render,createStore  } from "../core/index.js";
+
+const speed = 10;
+const frameWidth = 64;
+const frameHeight = 64;
+
 const directions = {
     "ArrowDown": 0,
     "ArrowUp": 1,
@@ -10,15 +11,20 @@ const directions = {
     "ArrowRight": 3
 };
 
+const playerStore = createStore({
+    x: 100,
+    y: 100,
+    direction: 0,
+    frameIndex: 0,
+    movingDirection: null
+});
+
 function updateCharacter() {
     const characterEl = document.querySelector(".player");
     if (!characterEl) return;
-
+    const { x, y, direction, frameIndex } = playerStore.getState();
     characterEl.style.left = `${x}px`;
     characterEl.style.top = `${y}px`;
-
-    const frameWidth = 64;
-    const frameHeight = 64;
     characterEl.style.backgroundPosition = `-${frameIndex * frameWidth}px -${direction * frameHeight}px`;
 }
 
@@ -27,38 +33,50 @@ export function renderPlayer() {
         class: "player",
         style: `
             position: absolute;
-            width: 64px;
-            height: 64px;
-            left: ${x}px;
-            top: ${y}px;
+            width: ${frameWidth}px;
+            height: ${frameHeight}px;
+            left: ${playerStore.getState().x}px;
+            top: ${playerStore.getState().y}px;
             background-image: url('/static/img/whiteman1.png');
             background-size: 192px 256px;
             background-repeat: no-repeat;
         `,
     });
 }
-
 // // Render player
 // const container = document.getElementById("game-area");
 // const app = renderPlayer();
 // render(app, container);
 
-function customKeydownLoop() {
-    document.onkeydown = (e) =>{
-        // triggerEvent('keydown', e);
-        if (directions[e.key] !== undefined) {
-    
-            direction = directions[e.key];
-            frameIndex = (frameIndex + 1) % 3;
-    
-            if (e.key === "ArrowDown") y += speed;
-            if (e.key === "ArrowUp") y -= speed;
-            if (e.key === "ArrowLeft") x -= speed;
-            if (e.key === "ArrowRight") x += speed;
-    
-            updateCharacter();
-        }}
+function gameLoop() {
+    const state = playerStore.getState();
+    if (state.movingDirection !== null) {
+        const direction = directions[state.movingDirection];
+
+        playerStore.setState({
+            ...state,
+            direction,
+            frameIndex: (state.frameIndex + 1) % 3,
+            x: state.movingDirection === "ArrowLeft" ? state.x - speed : state.movingDirection === "ArrowRight" ? state.x + speed : state.x,
+            y: state.movingDirection === "ArrowUp" ? state.y - speed : state.movingDirection === "ArrowDown" ? state.y + speed : state.y
+        });
+
+        updateCharacter();
+    }
+
+    requestAnimationFrame(gameLoop);
 }
 
-customKeydownLoop();
+document.onkeydown = function (e) {
+    if (directions[e.key] !== undefined) {
+        playerStore.setState({ ...playerStore.getState(), movingDirection: e.key });
+    }
+};
 
+document.onkeyup = function (e) {
+    if (e.key === playerStore.getState().movingDirection) {
+        playerStore.setState({ ...playerStore.getState(), movingDirection: null });
+    }
+};
+
+gameLoop();
