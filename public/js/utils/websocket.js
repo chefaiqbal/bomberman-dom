@@ -1,5 +1,3 @@
-// import {Waiting_Join} from "../app"
-
 export class WebSocketService {
     constructor(store, router) {
         this.store = store;
@@ -7,6 +5,14 @@ export class WebSocketService {
         this.ws = new WebSocket(`ws://localhost:8080/ws`);
         this.setupEventHandlers();
     }
+
+    
+Waiting_Join(clients) {
+    clients.forEach(client => {
+        client.this.router.navigate("/lobby"); 
+    });
+}
+
 
     setupEventHandlers() {
         this.ws.onopen = () => {
@@ -46,7 +52,7 @@ export class WebSocketService {
                 case "MOVE":
                     break;
                 case "Waiting_Join":
-                    Waiting_Join(data.data);
+                    Waiting_Join(data.data, this.router);
                     break
                 default:
                     console.warn("Unknown message type:", data.type);
