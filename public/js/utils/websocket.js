@@ -1,3 +1,5 @@
+import {Waiting_Join} from "../app"
+
 export class WebSocketService {
     constructor(store, router) {
         this.store = store;
@@ -39,10 +41,13 @@ export class WebSocketService {
                 case 'GAME_START':
                     this.handleGameStart(data.data);
                     break;
-                case "bomb":
+                case "BOMB":
                     break;
-                case "move":
+                case "MOVE":
                     break;
+                case "Waiting_Join":
+                    Waiting_Join(data.data);
+                    break
                 default:
                     console.warn("Unknown message type:", data.type);
             }

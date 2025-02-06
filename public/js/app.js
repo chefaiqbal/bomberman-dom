@@ -71,6 +71,7 @@ function startGameTimer() {
             clearInterval(timer);
             // Navigate to game when timer ends
             gameTimer = null;
+            ws.sendMessage('GAME_STARTED', {});
             router.navigate('/game');
         }
     }, 1000);
@@ -82,5 +83,10 @@ store.subscribe((state) => {
         startGameTimer();
     }
 });
+
+export const Waiting_Join = (clients) => {
+    clients.forEach(client => {
+        client.router.navigate("/wait"); 
+    });}
 
 router.navigate('/');

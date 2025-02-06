@@ -23,6 +23,7 @@ type Client struct {
 var (
 	clients = make(map[string]*Client)
 	mu      sync.Mutex
+	WaitedClient = make(map[string]*Client)
 )
 
 func WsEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -100,10 +101,13 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 		HandleBomb(msg.Msg)
 	case "PLAYER_JOIN":
 		log.Printf("Player joined: %s", msg.MsgType)
-		HandelJoin(msg.Msg, &clients, conn)  
+		HandelJoin(msg.Msg, &clients, conn, &WaitedClient)  
 	case "GAME_STARTED":
 		log.Printf("Game started: %s", msg.MsgType)
 		GameStart()
+	case "GAME_Done":
+		log.Printf("Game done: %s", msg.MsgType)
+		GameDone()
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
 	}

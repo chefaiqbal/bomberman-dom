@@ -3,7 +3,7 @@ package bomber
 import (
 	"encoding/json"
 	"log"
-	
+
 	"github.com/gorilla/websocket"
 )
 
@@ -11,6 +11,30 @@ var gameStarted = false
 
 func GameStart() {
 	gameStarted = true
+}
+
+func GameDone() {
+	gameStarted = false
+
+	mu.Lock()
+
+		for id := range clients {
+        	delete(clients, id)
+    	}
+
+		counter := 0
+		for id, w := range WaitedClient {
+			if  counter <= 4 {
+				clients[id] = w
+				delete(WaitedClient, id)
+				counter++
+			}else {
+				break;
+			}
+		}
+	mu.Unlock()
+
+	broadcastMessage("Waiting_Join", clients);
 }
 
 func sendWaitResponse(conn *websocket.Conn) {
@@ -24,8 +48,9 @@ func sendWaitResponse(conn *websocket.Conn) {
 }
 
 
-func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocket.Conn) {
+func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocket.Conn, WaitedClient *map[string]*Client) {
     var player Player
+	
     if err := json.Unmarshal(msg, &player); err != nil {
         log.Printf("Failed to unmarshal player: %v", err)
         return
@@ -34,10 +59,19 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 	mu.Lock()
 	if gameStarted {
 		mu.Unlock()
+
+		(*WaitedClient)[player.ID] = &Client{
+			conn: conn,
+			ID:   player.ID,
+		}
+
+
 		log.Printf("Player %s tried to join, but game already started. Redirecting to /wait", player.ID)
+
 		sendWaitResponse(conn)
 		return
 	}
+
 	mu.Unlock()
 
     log.Printf("Player joined with name: %s", player.ID)
