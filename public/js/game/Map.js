@@ -28,24 +28,33 @@ const temp = [
 ;
 
 export function renderMap(map) {
-    return createElement(
-      'div',
-      { class: 'map', style: 'display: grid; grid-template-columns: repeat(15, 60px);  grid-template-rows: repeat(11, 60px); ' },
-      map.flatMap((row) =>
-        row.map((cell) => {
-          if (cell === 1) {
-            return createElement('div', { class: 'wall', style: `background: url(${wallPath}) no-repeat center; background-size: contain;`});
-          }
-          if (cell === 2) {
-            return createElement('div', { class: 'wall', style: `background: url(${blockPath}) no-repeat center; background-size: contain;`});
-          }
-          return createElement('div', { class: 'empty', style: 'width: 60px; height: 60px; background: green;' });
-        })
-      ), renderPlayer()
-    );        
-   
-  
-  }
+  return createElement(
+    'div',
+    { 
+      class: 'map', 
+      style: `
+        display: grid; 
+        grid-template-columns: repeat(15, 50px);  
+        grid-template-rows: repeat(11, 50px);
+        justify-content: center;
+        margin: 0 auto;
+        padding: 20px;
+      ` 
+    },
+    map.flatMap((row) =>
+      row.map((cell) => {
+        if (cell === 1) {
+          return createElement('div', { class: 'wall', style: `background: url(${wallPath}) no-repeat center; background-size: contain;`});
+        }
+        if (cell === 2) {
+          return createElement('div', { class: 'wall', style: `background: url(${blockPath}) no-repeat center; background-size: contain;`});
+        }
+        return createElement('div', { class: 'empty', style: 'width: 50px; height: 50px; background: green;' });
+      })
+    ), renderPlayer()
+  );        
+}
+
   
   // const map= generateMap();
   // const mapElement = renderMap(map);
