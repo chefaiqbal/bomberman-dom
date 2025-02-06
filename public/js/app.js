@@ -84,9 +84,4 @@ store.subscribe((state) => {
     }
 });
 
-export const Waiting_Join = (clients) => {
-    clients.forEach(client => {
-        client.router.navigate("/wait"); 
-    });}
-
 router.navigate('/');
