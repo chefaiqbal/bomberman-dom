@@ -1,27 +1,28 @@
-import { createElement, render,createStore  } from "../core/index.js";
+import { createElement, render, createStore } from "../core/index.js";
 
-const speed = 10;
-const frameWidth = 64;
-const frameHeight = 64;
-
+const tileSize = 50;
+const frameWidth = 50;
+const frameHeight = 50;
+const speed = 5; 
 const directions = {
     "ArrowDown": 0,
     "ArrowUp": 1,
     "ArrowLeft": 2,
     "ArrowRight": 3
 };
-
+const startX = (1.5 * tileSize) - 5;  
+const startY = (1.5 * tileSize) - 5;  
 const playerStore = createStore({
-    x: 100,
-    y: 100,
-    direction: 0,
-    frameIndex: 0,
-    movingDirection: null
+    x: startX, y: startY,  
+    targetX: startX, targetY: startY,  
+    direction: 0, frameIndex: 0,
+    moving: false, movingDirection: null
 });
 
 function updateCharacter() {
     const characterEl = document.querySelector(".player");
     if (!characterEl) return;
+    
     const { x, y, direction, frameIndex } = playerStore.getState();
     characterEl.style.left = `${x}px`;
     characterEl.style.top = `${y}px`;
@@ -38,28 +39,30 @@ export function renderPlayer() {
             left: ${playerStore.getState().x}px;
             top: ${playerStore.getState().y}px;
             background-image: url('/static/img/whiteman1.png');
-            background-size: 192px 256px;
+            background-size: 150px 200px;
             background-repeat: no-repeat;
         `,
     });
 }
-// // Render player
-// const container = document.getElementById("game-area");
-// const app = renderPlayer();
-// render(app, container);
 
 function gameLoop() {
     const state = playerStore.getState();
-    if (state.movingDirection !== null) {
-        const direction = directions[state.movingDirection];
+    
+    if (state.moving) {
+        let { x, y, targetX, targetY } = state;
+        let dx = targetX - x, dy = targetY - y;
 
-        playerStore.setState({
-            ...state,
-            direction,
-            frameIndex: (state.frameIndex + 1) % 3,
-            x: state.movingDirection === "ArrowLeft" ? state.x - speed : state.movingDirection === "ArrowRight" ? state.x + speed : state.x,
-            y: state.movingDirection === "ArrowUp" ? state.y - speed : state.movingDirection === "ArrowDown" ? state.y + speed : state.y
-        });
+        if (Math.abs(dx) > speed) x += Math.sign(dx) * speed;
+        else x = targetX;
+
+        if (Math.abs(dy) > speed) y += Math.sign(dy) * speed;
+        else y = targetY;
+
+        playerStore.setState({ ...state, x, y });
+
+        if (x === targetX && y === targetY) {
+            playerStore.setState({ ...playerStore.getState(), moving: false });
+        }
 
         updateCharacter();
     }
@@ -68,15 +71,22 @@ function gameLoop() {
 }
 
 document.onkeydown = function (e) {
-    if (directions[e.key] !== undefined) {
-        playerStore.setState({ ...playerStore.getState(), movingDirection: e.key });
-    }
-};
+    const state = playerStore.getState();
+    if (state.moving) return;
 
-document.onkeyup = function (e) {
-    if (e.key === playerStore.getState().movingDirection) {
-        playerStore.setState({ ...playerStore.getState(), movingDirection: null });
-    }
+    let newX = state.x, newY = state.y;
+    
+    if (e.key === "ArrowLeft") newX -= tileSize;
+    if (e.key === "ArrowRight") newX += tileSize;
+    if (e.key === "ArrowUp") newY -= tileSize;
+    if (e.key === "ArrowDown") newY += tileSize;
+    
+    playerStore.setState({
+        ...state,
+        targetX: newX, targetY: newY,
+        moving: true, direction: directions[e.key],
+        frameIndex: (state.frameIndex + 1) % 3  
+    });
 };
 
 gameLoop();
