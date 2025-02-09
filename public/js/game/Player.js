@@ -95,12 +95,10 @@ function detectCollision(x,y){
     console.log((x-20)/tileSize,(y-20)/tileSize)
     let row=(x-20)/tileSize;
     let col=(y-20)/tileSize;
-console.log(map)
-    if( map[row][col]===1 || map[row][col]===2){
+    console.log(map)
+    if( map[col][row]===1 || map[col][row]===2){
         return true}
-
-    return false
-
-}
+        return false
+    }
 
 gameLoop();
