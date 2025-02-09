@@ -1,4 +1,5 @@
 import { createElement, render, createStore } from "../core/index.js";
+import { map } from "../components/GameBoard.js";
 
 const tileSize = 50;
 const frameWidth = 50;
@@ -38,7 +39,7 @@ export function renderPlayer() {
             height: ${frameHeight}px;
             left: ${playerStore.getState().x}px;
             top: ${playerStore.getState().y}px;
-            background-image: url('/static/img/whiteman1.png');
+            background-image: url('/static/img/blue.png');
             background-size: 150px 200px;
             background-repeat: no-repeat;
         `,
@@ -80,13 +81,26 @@ document.onkeydown = function (e) {
     if (e.key === "ArrowRight") newX += tileSize;
     if (e.key === "ArrowUp") newY -= tileSize;
     if (e.key === "ArrowDown") newY += tileSize;
-    
+    if (!detectCollision(newX,newY)){
     playerStore.setState({
         ...state,
         targetX: newX, targetY: newY,
         moving: true, direction: directions[e.key],
         frameIndex: (state.frameIndex + 1) % 3  
     });
+}
 };
+
+function detectCollision(x,y){
+    console.log((x-20)/tileSize,(y-20)/tileSize)
+    let row=(x-20)/tileSize;
+    let col=(y-20)/tileSize;
+console.log(map)
+    if( map[row][col]===1 || map[row][col]===2){
+        return true}
+
+    return false
+
+}
 
 gameLoop();
