@@ -1,5 +1,6 @@
 import { createElement, render, createStore } from "../core/index.js";
 import { map } from "../components/GameBoard.js";
+import { ws } from "../app.js"; 
 
 const tileSize = 50;
 const frameWidth = 50;
@@ -77,10 +78,18 @@ document.onkeydown = function (e) {
 
     let newX = state.x, newY = state.y;
     
-    if (e.key === "ArrowLeft") newX -= tileSize;
-    if (e.key === "ArrowRight") newX += tileSize;
-    if (e.key === "ArrowUp") newY -= tileSize;
-    if (e.key === "ArrowDown") newY += tileSize;
+    if (e.key === "ArrowLeft") {newX -= tileSize;
+        ws.sendMessage("MOVE", {direction: "LEFT" });
+    };
+    if (e.key === "ArrowRight") {newX += tileSize;
+        ws.sendMessage("MOVE", {direction: "Right" });
+    };
+    if (e.key === "ArrowUp") {newY -= tileSize;
+        ws.sendMessage("MOVE", {direction: "UP" });
+    };
+    if (e.key === "ArrowDown") {newY += tileSize;
+        ws.sendMessage("MOVE", {direction: "DOWN" });
+    };
     if (!detectCollision(newX,newY)){
     playerStore.setState({
         ...state,

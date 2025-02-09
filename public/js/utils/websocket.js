@@ -66,21 +66,15 @@ Waiting_Join(clients) {
                 msgType: type.toUpperCase(),
                 msg: payload
             };
-            console.log("Sending WebSocket message:", message);
             this.ws.send(JSON.stringify(message));
         }
     }
 
-    handleChatMessage(data) {
+    handleChatMessage(msg) {
         const state = this.store.getState();
-        const newMessage = {
-            playerName: data.playerName || state.playerName,
-            message: data.message
-        };
-        
         this.store.setState({
             ...state,
-            messages: [...(state.messages || []), newMessage]
+            messages: [...state.messages, msg]
         });
     }
 

@@ -55,7 +55,7 @@ const router = createRouter({
     }
 });
 
-const ws = new WebSocketService(store, router);
+export const ws = new WebSocketService(store, router);
 const appElement = document.getElementById('app');
 
 let gameTimer = null;
