@@ -95,15 +95,20 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
     broadcastMessage("PLAYER_JOIN", clientList)
 }
 
-func HandleChat(msg json.RawMessage) {
-	var chat Chat
-	if err := json.Unmarshal(msg, &chat); err != nil {
-		log.Printf("Failed to unmarshal chat: %v", err)
-		return
-	}
+type ChatMessage struct {
+    Message    string `json:"message"`
+    PlayerName string `json:"playerName"`
+}
 
-	log.Printf("Chat: %s", chat.Message)
-	broadcastMessage("chat", chat.Message)
+func HandleChat(msg json.RawMessage) {
+    var chat ChatMessage
+    if err := json.Unmarshal(msg, &chat); err != nil {
+        log.Printf("Failed to unmarshal chat: %v", err)
+        return
+    }
+
+    log.Printf("Chat from %s: %s", chat.PlayerName, chat.Message)
+    broadcastMessage("chat", chat)
 }
 
 func HandleMove(msg json.RawMessage) {

@@ -2,7 +2,9 @@ export const initialState = {
     playerId: Math.random().toString(36).substring(7),
     playerName: 'Player ' + Math.floor(Math.random() * 1000),
     games: [],
-    currentGame: null
+    currentGame: null,
+    messages: [],
+    wsConnected: false
 };
 
 export function createStore(initialState) {
