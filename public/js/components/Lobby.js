@@ -20,13 +20,14 @@ export function Lobby({ store, router, ws }) {
     }
 
     function renderPlayersList() {
-        const playersList = state.players || [{ id: state.playerId, name: state.playerName }];
+        console.log("Current players:", state.players);
+        const playersList = state.players || [{ ID: state.playerName }];
         return createElement('div', { id: 'players-list', class: 'space-y-3' },
             ...playersList.map(player =>
                 createElement('div', { class: 'flex items-center p-4 border rounded-lg bg-gray-50' },
                     createElement('div', { class: 'w-3 h-3 rounded-full bg-green-500 mr-3' }),
-                    createElement('span', { class: 'text-lg text-gray-700' }, player.name),
-                    player.id === state.playerId && 
+                    createElement('span', { class: 'text-lg text-gray-700' }, player.ID),
+                    player.ID === state.playerName && 
                         createElement('span', { class: 'ml-2 text-sm text-gray-500' }, '(You)')
                 )
             )
