@@ -9,6 +9,16 @@ import (
 
 var gameStarted = false
 
+func Mapping(msg json.RawMessage) {
+	var Map Map
+	if err := json.Unmarshal(msg, &Map); err != nil {
+		log.Printf("error in unmarshel map: %s", err)
+		return
+	}
+
+	broadcastMessage("MAP", Map);
+}
+
 func GameStart() {
 	gameStarted = true
 }

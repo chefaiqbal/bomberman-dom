@@ -1,11 +1,13 @@
 
+import { ws } from "../app.js";
 import { createElement,render } from "../core/dom.js";
-import { renderPlayer } from "../game/Player.js"; 
+import { renderPlayer } from "../game/Player.js";
 
 
   const blockPath = '/static/img/Bwall.png';
   const wallPath = '/static/img/wall.png';
   const floorPath = '/static/img/floor.png';
+
 const temp = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 1],
@@ -27,7 +29,12 @@ const temp = [
   }
 ;
 
-export function renderMap(map) {
+const map=generateMap();
+ws.sendMessage("MAP", {grid: map})
+
+export function renderMap() {
+
+  let map = null
   return createElement(
     'div',
     { 

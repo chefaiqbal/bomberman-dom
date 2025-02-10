@@ -52,8 +52,11 @@ Waiting_Join(clients) {
                 case "MOVE":
                     break;
                 case "Waiting_Join":
-                    Waiting_Join(data.data, this.router);
-                    break
+                    this.Waiting_Join(data.data, this.router);
+                    break;
+                case "MAP":
+                    this.handelMap(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -68,6 +71,10 @@ Waiting_Join(clients) {
             };
             this.ws.send(JSON.stringify(message));
         }
+    }
+
+    handelMap(map){
+        
     }
 
     handleChatMessage(msg) {

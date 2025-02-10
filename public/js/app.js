@@ -13,6 +13,7 @@ const initialState = {
     gameStartTimer: null,
     currentGame: null,
     wsConnected: false,
+    map: null
 };
 
 const store = createStore(initialState);

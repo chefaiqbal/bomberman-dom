@@ -108,6 +108,9 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 	case "GAME_Done":
 		log.Printf("Game done: %s", msg.MsgType)
 		GameDone()
+	case "MAP":
+		log.Printf("map: %s", msg.MsgType)
+		Mapping(msg.Msg)
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
 	}

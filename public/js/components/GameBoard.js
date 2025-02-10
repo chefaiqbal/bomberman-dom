@@ -1,10 +1,7 @@
 import { createElement, render } from "../core/dom.js";
 import { renderMap, generateMap } from "../game/Map.js";
 
-
-
-
-export const map=generateMap();
+ 
 function createPlayerList(players) {
     return createElement(
         'div',
@@ -96,7 +93,7 @@ export function GameBoard({ store, router, ws }) {
                     class: 'map-container',
                     style: 'position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);'
                 },
-                [renderMap(map)]
+                [renderMap()]
             ),
             createPlayerList(players),
             createTimer(),

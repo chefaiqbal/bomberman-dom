@@ -30,3 +30,6 @@ type Player struct {
     Y       int     `json:"y"`
     Lives   int     `json:"lives"`
 }
+type Map struct {
+    Grid [][]int `json:"grid"`
+}
