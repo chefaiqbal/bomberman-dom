@@ -1,5 +1,6 @@
 import { createElement, render } from '../core/index.js';
 import { Chat } from './Chat.js';
+import { GameTimer } from './GameTimer.js';
 
 export function Lobby({ store, router, ws }) {
     let state = store.getState();
@@ -56,7 +57,8 @@ export function Lobby({ store, router, ws }) {
                 createElement('span', { class: 'text-lg text-gray-600' }, `Playing as: ${state.playerName}`)
             )
         ),
-        createElement('div', { class: 'grid grid-cols-1 lg:grid-cols-3 gap-8' },
+        GameTimer({ store, router, ws }),
+        createElement('div', { class: 'grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4' },
             createElement('div', { class: 'lg:col-span-2' }, renderPlayersList()),  
             createElement('div', { class: 'lg:col-span-1' }, Chat({ store, ws }))
         )

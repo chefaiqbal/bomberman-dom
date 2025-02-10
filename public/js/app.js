@@ -62,7 +62,7 @@ let gameTimer = null;
 // Timer logic for game start
 function startGameTimer() {
      if (gameTimer) return;
-    let timeLeft = 10; // 10 second countdown
+    let timeLeft = 30; // 10 second countdown
     store.setState({ ...store.getState(), gameStartTimer: timeLeft });
     const timer = setInterval(() => {
         timeLeft--;
