@@ -1,9 +1,6 @@
 import { createElement, render } from "../core/dom.js";
 import { renderMap, generateMap } from "../game/Map.js";
 
-
-
-
 export const map=generateMap();
 function createPlayerList(players) {
     return createElement(
@@ -75,14 +72,14 @@ function createPlayerLives() {
 }
 
 export function GameBoard({ store, router, ws }) {
-    const currentState = store.getState();
-    const currentPlayerName = currentState.playerName;
-    const otherPlayers = currentState.connectedPlayers || [];
-
+    const state = store.getState();
+    
     const players = [
-        { name: currentPlayerName }, // Current player always first
-        ...otherPlayers.map(player => ({ name: player.nickname }))
-    ].filter(player => player.name); 
+        { name: state.playerName },
+        ...(state.players || [])
+            .filter(player => player.ID !== state.playerName)
+            .map(player => ({ name: player.ID }))
+    ].filter(player => player.name);
 
     return createElement(
         'div',
@@ -96,7 +93,7 @@ export function GameBoard({ store, router, ws }) {
                     class: 'map-container',
                     style: 'position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);'
                 },
-                [renderMap(map)]
+                [renderMap(generateMap())]
             ),
             createPlayerList(players),
             createTimer(),
@@ -104,6 +101,7 @@ export function GameBoard({ store, router, ws }) {
         ]
     );
 }
+
 
 
 
