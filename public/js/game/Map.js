@@ -1,5 +1,5 @@
 
-import { ws } from "../app.js";
+// import { ws } from "../app.js";
 import { createElement,render } from "../core/dom.js";
 import { renderPlayer } from "../game/Player.js";
 
@@ -29,12 +29,10 @@ const temp = [
   }
 ;
 
-const map=generateMap();
-ws.sendMessage("MAP", {grid: map})
 
-export function renderMap() {
 
-  let map = null
+export function renderMap(map) {
+
   return createElement(
     'div',
     { 

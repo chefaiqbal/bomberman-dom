@@ -10,14 +10,18 @@ import (
 var gameStarted = false
 
 func Mapping(msg json.RawMessage) {
-	var Map Map
-	if err := json.Unmarshal(msg, &Map); err != nil {
-		log.Printf("error in unmarshel map: %s", err)
-		return
-	}
+    var data struct {
+        Mapp [][]int `json:"mapp"`
+    }
+    if err := json.Unmarshal(msg, &data); err != nil {
+        log.Printf("error in unmarshalling map: %s", err)
+        return
+    }
 
-	broadcastMessage("MAP", Map);
+    log.Printf("map: %v", data.Mapp)
+    broadcastMessage("MAP", data.Mapp)
 }
+
 
 func GameStart() {
 	gameStarted = true

@@ -1,6 +1,7 @@
 import { createElement, render } from '../core/index.js';
 import { Chat } from './Chat.js';
 
+
 export function Lobby({ store, router, ws }) {
     let state = store.getState();
 
@@ -18,6 +19,7 @@ export function Lobby({ store, router, ws }) {
         });
         store.setState({ ...state, wsConnected: true });
     }
+    
 
     function renderPlayersList() {
         console.log("Current players:", state.players);

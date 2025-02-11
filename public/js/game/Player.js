@@ -1,6 +1,5 @@
 import { createElement, render, createStore } from "../core/index.js";
-import { map } from "../components/GameBoard.js";
-import { ws } from "../app.js"; 
+import { ws, store } from "../app.js"; 
 
 const tileSize = 50;
 const frameWidth = 50;
@@ -100,14 +99,22 @@ document.onkeydown = function (e) {
 }
 };
 
-function detectCollision(x,y){
-    console.log((x-20)/tileSize,(y-20)/tileSize)
-    let row=(x-20)/tileSize;
-    let col=(y-20)/tileSize;
-    console.log(map)
-    if( map[col][row]===1 || map[col][row]===2){
-        return true}
-        return false
+function detectCollision(x, y) {
+    const state = store.getState();
+    const map = state.map;
+
+    // Guard against null/undefined map
+    if (!map) return true; // Block movement if map isn't loaded
+
+    const row = Math.floor((x - 20) / tileSize);
+    const col = Math.floor((y - 20) / tileSize);
+
+    // Check if row/col are within valid bounds
+    if (col < 0 || col >= map.length || row < 0 || row >= map[0].length) {
+        return true;
     }
+
+    return map[col][row] === 1 || map[col][row] === 2;
+}
 
 gameLoop();

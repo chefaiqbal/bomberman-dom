@@ -117,24 +117,28 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 }
 
 func broadcastMessage(msgType string, payload interface{}) {
-	mu.Lock()
-	defer mu.Unlock()
+    mu.Lock()
+    defer mu.Unlock()
 
-	if len(clients) == 0 {
-		return
-	}
+    if len(clients) == 0 {
+        return
+    }
 
-	message := struct {
-		Type string      `json:"type"`
-		Data interface{} `json:"data"`
-	}{
-		Type: msgType,
-		Data: payload,
-	}
+    message := struct {
+        Type string      `json:"type"`
+        Data interface{} `json:"data"`
+    }{
+        Type: msgType,
+        Data: payload,
+    }
 
-	for _, client := range clients {
-		if err := client.conn.WriteJSON(message); err != nil {
-			log.Printf("Broadcast error: %v", err)
-		}
-	}
+    for id, client := range clients {
+        if err := client.conn.WriteJSON(message); err != nil {
+            log.Printf("Broadcast error to %s: %v", id, err)
+            client.conn.Close()
+            delete(clients, id) 
+        }
+    }
+    
+    log.Printf("l brodcast it: %s", msgType)
 }

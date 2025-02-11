@@ -73,9 +73,13 @@ Waiting_Join(clients) {
         }
     }
 
-    handelMap(map){
-        
-    }
+    handelMap(map) {
+        console.log("Updating map:", map);
+        this.store.setState({
+            ...this.store.getState(),
+            map: map
+        });
+    }    
 
     handleChatMessage(msg) {
         const state = this.store.getState();

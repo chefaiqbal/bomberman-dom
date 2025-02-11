@@ -93,11 +93,29 @@ export function GameBoard({ store, router, ws }) {
                     class: 'map-container',
                     style: 'position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);'
                 },
-                [renderMap()]
+                [
+                    // Add conditional rendering for map
+                    currentState.map ? 
+                        renderMap(currentState.map) :
+                        createElement('div', 
+                            { 
+                                class: 'map-loading', 
+                                style: 'color: white; font-size: 24px;' 
+                            }, 
+                            'Loading game map...'
+                        )
+                ]
             ),
             createPlayerList(players),
             createTimer(),
-            createPlayerLives()
+            createPlayerLives(),
+            // Add error boundary element
+            createElement('div', 
+                { 
+                    class: 'game-error',
+                    style: 'display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: red;' 
+                }
+            )
         ]
     );
 }
