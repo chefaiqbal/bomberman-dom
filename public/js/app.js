@@ -79,26 +79,32 @@ function startGameTimer() {
     }, 1000);
 }
 
+let PlayerCount = 0; 
+
 // Watch for player count changes
 store.subscribe((state) => {
-    if (state.players.length === 1 && !state.mapGen) {
-        const map = generateMap();
-        console.log("mapping: ", map);
-        store.setState({ 
-            ...state, 
-            mapGen: true, 
-            map: map // Store the map
-        });
+    const playerCount = state.players.length;
 
-        ws.sendMessage("MAP",  {mapp: map} ); // Send map to the first player
-    }
+    if (playerCount !== PlayerCount) {
+        if (playerCount === 1 && !state.mapGen) {
+            const map = generateMap();
+            console.log("mapping: ", map);
+            store.setState({ 
+                ...state, 
+                mapGen: true, 
+                map: map 
+            });
+            ws.sendMessage("MAP", { mapp: map });
+        } 
+        else if (playerCount > 1 && state.mapGen) {
+            ws.sendMessage("MAP", { mapp: state.map });
+        }
 
-    if (state.players.length > 1 && state.mapGen) {
-        // Send the stored map to new players
-        ws.sendMessage("MAP", {mapp: state.map} ); // Send the map directly from state
-    }
-    if (state.players.length >= 2 && state.gameStartTimer === null) {
-        startGameTimer();
+        if (playerCount >= 2 && state.gameStartTimer === null) {
+            startGameTimer();
+        }
+
+        PlayerCount = playerCount; 
     }
 });
 
