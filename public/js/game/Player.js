@@ -1,7 +1,5 @@
 import { createElement, render, createStore } from "../core/index.js";
-import { map } from "../components/GameBoard.js";
-import { ws } from "../app.js"; 
-
+import { ws, store } from "../app.js"; 
 const tileSize = 50;
 const frameWidth = 50;
 const frameHeight = 50;
@@ -20,7 +18,6 @@ const playerStore = createStore({
     direction: 0, frameIndex: 0,
     moving: false, movingDirection: null
 });
-
 function updateCharacter() {
     const characterEl = document.querySelector(".player");
     if (!characterEl) return;
@@ -30,7 +27,6 @@ function updateCharacter() {
     characterEl.style.top = `${y}px`;
     characterEl.style.backgroundPosition = `-${frameIndex * frameWidth}px -${direction * frameHeight}px`;
 }
-
 export function renderPlayer() {
     return createElement("div", {
         class: "player",
@@ -46,36 +42,27 @@ export function renderPlayer() {
         `,
     });
 }
-
 function gameLoop() {
     const state = playerStore.getState();
     
     if (state.moving) {
         let { x, y, targetX, targetY } = state;
         let dx = targetX - x, dy = targetY - y;
-
         if (Math.abs(dx) > speed) x += Math.sign(dx) * speed;
         else x = targetX;
-
         if (Math.abs(dy) > speed) y += Math.sign(dy) * speed;
         else y = targetY;
-
         playerStore.setState({ ...state, x, y });
-
         if (x === targetX && y === targetY) {
             playerStore.setState({ ...playerStore.getState(), moving: false });
         }
-
         updateCharacter();
     }
-
     requestAnimationFrame(gameLoop);
 }
-
 document.onkeydown = function (e) {
     const state = playerStore.getState();
     if (state.moving) return;
-
     let newX = state.x, newY = state.y;
     
     if (e.key === "ArrowLeft") {newX -= tileSize;
@@ -99,15 +86,17 @@ document.onkeydown = function (e) {
     });
 }
 };
-
-function detectCollision(x,y){
-    console.log((x-20)/tileSize,(y-20)/tileSize)
-    let row=(x-20)/tileSize;
-    let col=(y-20)/tileSize;
-    console.log(map)
-    if( map[col][row]===1 || map[col][row]===2){
-        return true}
-        return false
+function detectCollision(x, y) {
+    const state = store.getState();
+    const map = state.map;
+    // Guard against null/undefined map
+    if (!map) return true; // Block movement if map isn't loaded
+    const row = Math.floor((x - 20) / tileSize);
+    const col = Math.floor((y - 20) / tileSize);
+    // Check if row/col are within valid bounds
+    if (col < 0 || col >= map.length || row < 0 || row >= map[0].length) {
+        return true;
     }
-
+    return map[col][row] === 1 || map[col][row] === 2;
+}
 gameLoop();

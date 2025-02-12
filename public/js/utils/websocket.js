@@ -5,38 +5,30 @@ export class WebSocketService {
         this.ws = new WebSocket(`ws://localhost:8080/ws`);
         this.setupEventHandlers();
     }
-
     
 Waiting_Join(clients) {
     clients.forEach(client => {
         client.this.router.navigate("/lobby"); 
     });
 }
-
-
     setupEventHandlers() {
         this.ws.onopen = () => {
             console.log("WebSocket connection established.");
         };
-
         this.ws.onerror = (error) => {
             console.error("WebSocket error:", error);
         };
-
         this.ws.onclose = (event) => {
             console.log("WebSocket connection closed:", event);
         };
-
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log("Received WebSocket message:", data);
-
             if (data.status === "wait" && data.redirect) {
                 console.log("Redirecting player to", data.redirect);
                 this.router.navigate("/wait");
                 return;
             }
-
             switch (data.type) {
                 case 'chat':
                     this.handleChatMessage(data.data);
@@ -52,14 +44,16 @@ Waiting_Join(clients) {
                 case "MOVE":
                     break;
                 case "Waiting_Join":
-                    Waiting_Join(data.data, this.router);
-                    break
+                    this.Waiting_Join(data.data, this.router);
+                    break;
+                case "MAP":
+                    this.handelMap(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
         };
     }
-
     sendMessage(type, payload) {
         if (this.ws.readyState === WebSocket.OPEN) {
             const message = {
@@ -69,7 +63,13 @@ Waiting_Join(clients) {
             this.ws.send(JSON.stringify(message));
         }
     }
-
+    handelMap(map) {
+        console.log("Updating map:", map);
+        this.store.setState({
+            ...this.store.getState(),
+            map: map
+        });
+    }    
     handleChatMessage(msg) {
         const state = this.store.getState();
         this.store.setState({
@@ -77,7 +77,6 @@ Waiting_Join(clients) {
             messages: [...state.messages, msg]
         });
     }
-
     handlePlayerUpdate(players) {
         console.log("Updating players list", players);
         this.store.setState({
@@ -85,7 +84,6 @@ Waiting_Join(clients) {
             players: players
         });
     }
-
     handleGameStart(gameData) {
         this.store.setState({
             ...this.store.getState(),

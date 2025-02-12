@@ -3,6 +3,7 @@ import { Lobby } from './components/Lobby.js';
 import { NicknameScreen } from './components/NicknameScreen.js';
 import { WebSocketService } from './utils/websocket.js';
 import { GameBoard } from './components/GameBoard.js';
+import { generateMap } from './game/Map.js';
 
 const initialState = {
     playerId: Math.random().toString(36).substring(7),
@@ -13,9 +14,11 @@ const initialState = {
     gameStartTimer: null,
     currentGame: null,
     wsConnected: false,
+    map: null,
+    mapGen: false
 };
 
-const store = createStore(initialState);
+export const store = createStore(initialState);
 
 
 const router = createRouter({
@@ -76,12 +79,34 @@ function startGameTimer() {
         }
     }, 1000);
 }
+let PlayerCount = 0; 
 
 // Watch for player count changes
 store.subscribe((state) => {
-    if (state.players.length >= 2 && state.gameStartTimer===null) {
-        startGameTimer();
+    const playerCount = state.players.length;
+
+    if (playerCount !== PlayerCount) {
+        if (playerCount === 1 && !state.mapGen) {
+            const map = generateMap();
+            console.log("mapping: ", map);
+            store.setState({ 
+                ...state, 
+                mapGen: true, 
+                map: map 
+            });
+            ws.sendMessage("MAP", { mapp: map });
+        } 
+        else if (playerCount > 1 && state.mapGen) {
+            ws.sendMessage("MAP", { mapp: state.map });
+        }
+
+        if (playerCount >= 2 && state.gameStartTimer === null) {
+            startGameTimer();
+        }
+
+        PlayerCount = playerCount; 
     }
 });
+
 
 router.navigate('/');
