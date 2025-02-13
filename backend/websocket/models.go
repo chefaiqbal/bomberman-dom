@@ -13,8 +13,7 @@ type Chat struct {
 
 type Move struct {
 	Direction string `json:"direction"`
-	PlayerID  string `json:"playerID"`
-
+	PlayerName  string `json:"playerName"`
 }
 
 type Bomb struct {

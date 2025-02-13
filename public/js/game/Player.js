@@ -1,5 +1,6 @@
 import { createElement, render, createStore } from "../core/index.js";
 import { ws, store } from "../app.js"; 
+
 const tileSize = 50;
 const frameWidth = 50;
 const frameHeight = 50;
@@ -27,21 +28,46 @@ function updateCharacter() {
     characterEl.style.top = `${y}px`;
     characterEl.style.backgroundPosition = `-${frameIndex * frameWidth}px -${direction * frameHeight}px`;
 }
+
 export function renderPlayer() {
-    return createElement("div", {
-        class: "player",
-        style: `
-            position: absolute;
-            width: ${frameWidth}px;
-            height: ${frameHeight}px;
-            left: ${playerStore.getState().x}px;
-            top: ${playerStore.getState().y}px;
-            background-image: url('/static/img/blue.png');
-            background-size: 150px 200px;
-            background-repeat: no-repeat;
-        `,
+    const states = store.getState();
+    const players = [...states.players];
+
+    players.sort((a, b) => a.ID.localeCompare(b.ID)); 
+
+    console.log('Sorted Players:', players);
+
+    const startPositions = [
+        { x: 1 * tileSize,  y: 1 * tileSize  },  // top-left
+        { x: 13 * tileSize, y: 1 * tileSize  },  // top-right
+        { x: 1 * tileSize,  y: 9 * tileSize  },  // bottom-left
+        { x: 13 * tileSize, y: 9 * tileSize  },  // bottom-right
+    ];
+
+    return players.map((player, index) => {
+        const posIndex = index % startPositions.length; 
+        const { x, y } = startPositions[posIndex];
+
+        console.log(`Player ${player.ID} assigned position: ${x}, ${y}`); 
+
+        return createElement("div", {
+            class: "player",
+            "data-name": player.ID,
+            style: `
+                position: absolute;
+                width: ${frameWidth}px;
+                height: ${frameHeight}px;
+                left: ${x}px;
+                top: ${y}px;
+                background-image: url('/static/img/blue.png');
+                background-size: 150px 200px;
+                background-repeat: no-repeat;
+            `,
+        });
     });
 }
+
+
 function gameLoop() {
     const state = playerStore.getState();
     
@@ -61,21 +87,22 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 document.onkeydown = function (e) {
+    const states = store.getState();
     const state = playerStore.getState();
     if (state.moving) return;
     let newX = state.x, newY = state.y;
     
     if (e.key === "ArrowLeft") {newX -= tileSize;
-        ws.sendMessage("MOVE", {direction: "LEFT" });
+        ws.sendMessage("MOVE", {direction: "LEFT", playerName: states.playerName });
     };
     if (e.key === "ArrowRight") {newX += tileSize;
-        ws.sendMessage("MOVE", {direction: "Right" });
+        ws.sendMessage("MOVE", {direction: "Right", playerName: states.playerName  });
     };
     if (e.key === "ArrowUp") {newY -= tileSize;
-        ws.sendMessage("MOVE", {direction: "UP" });
+        ws.sendMessage("MOVE", {direction: "UP" , playerName: states.playerName });
     };
     if (e.key === "ArrowDown") {newY += tileSize;
-        ws.sendMessage("MOVE", {direction: "DOWN" });
+        ws.sendMessage("MOVE", {direction: "DOWN" , playerName: states.playerName });
     };
     if (!detectCollision(newX,newY)){
     playerStore.setState({
