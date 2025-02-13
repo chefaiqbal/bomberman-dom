@@ -38,15 +38,15 @@ export function renderPlayer() {
     console.log('Sorted Players:', players);
 
     const startPositions = [
-        { x: 1 * tileSize,  y: 1 * tileSize  },  // top-left
-        { x: 13 * tileSize, y: 1 * tileSize  },  // top-right
-        { x: 1 * tileSize,  y: 9 * tileSize  },  // bottom-left
-        { x: 13 * tileSize, y: 9 * tileSize  },  // bottom-right
+        { x:  tileSize +20,  y:  tileSize +20, color:"red" },  // top-left
+        { x: 13 * tileSize +20, y:  tileSize +20, color:"blue" },  // top-right
+        { x: tileSize +20,  y: 9 * tileSize + 20,color:"white"  },  // bottom-left
+        { x: 13 * tileSize +20, y: 9* tileSize + 20 ,color:"black"  },  // bottom-right
     ];
 
     return players.map((player, index) => {
         const posIndex = index % startPositions.length; 
-        const { x, y } = startPositions[posIndex];
+        const { x, y,color } = startPositions[posIndex];
 
         console.log(`Player ${player.ID} assigned position: ${x}, ${y}`); 
 
@@ -59,7 +59,7 @@ export function renderPlayer() {
                 height: ${frameHeight}px;
                 left: ${x}px;
                 top: ${y}px;
-                background-image: url('/static/img/blue.png');
+                background-image: url('/static/img/${color}.png');
                 background-size: 150px 200px;
                 background-repeat: no-repeat;
             `,
