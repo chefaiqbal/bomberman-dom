@@ -61,24 +61,6 @@ const router = createRouter({
 export const ws = new WebSocketService(store, router);
 const appElement = document.getElementById('app');
 
-let gameTimer = null;
-// Timer logic for game start
-function startGameTimer() {
-     if (gameTimer) return;
-    let timeLeft = 30; // 10 second countdown
-    store.setState({ ...store.getState(), gameStartTimer: timeLeft });
-    const timer = setInterval(() => {
-        timeLeft--;
-        store.setState({ ...store.getState(), gameStartTimer: timeLeft });     
-        if (timeLeft <= 0) {
-            clearInterval(timer);
-            // Navigate to game when timer ends
-            gameTimer = null;
-            ws.sendMessage('GAME_STARTED', {});
-            router.navigate('/game');
-        }
-    }, 1000);
-}
 let PlayerCount = 0; 
 
 // Watch for player count changes
@@ -98,10 +80,6 @@ store.subscribe((state) => {
         } 
         else if (playerCount > 1 && state.mapGen) {
             ws.sendMessage("MAP", { mapp: state.map });
-        }
-
-        if (playerCount >= 2 && state.gameStartTimer === null) {
-            startGameTimer();
         }
 
         PlayerCount = playerCount; 

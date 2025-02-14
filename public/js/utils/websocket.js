@@ -49,6 +49,12 @@ Waiting_Join(clients) {
                 case "MAP":
                     this.handelMap(data.data);
                     break;
+                case 'TIMER_UPDATE':
+                    this.handleTimerUpdate(data.data);
+                    break;
+                case 'GAME_STATE':
+                    this.handleGameState(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -84,10 +90,42 @@ Waiting_Join(clients) {
             players: players
         });
     }
-    handleGameStart(gameData) {
+    handleGameStart(data) {
+        console.log("Game start received");
         this.store.setState({
             ...this.store.getState(),
-            currentGame: gameData
+            gameStartTimer: 0,
+            timerActive: false
+        });
+        this.router.navigate('/game');
+    }
+    handleTimerUpdate(data) {
+        console.log("Timer update received:", data);
+        const state = this.store.getState();
+        
+        // Check if timer has completed
+        if (data.timeLeft === 0 && !data.isActive) {
+            this.store.setState({
+                ...state,
+                gameStartTimer: 0,
+                timerActive: false
+            });
+            return;
+        }
+
+        this.store.setState({
+            ...state,
+            gameStartTimer: data.timeLeft,
+            timerActive: data.isActive
+        });
+    }
+    handleGameState(data) {
+        console.log("Game state received:", data);
+        this.store.setState({
+            ...this.store.getState(),
+            gameStartTimer: data.timeLeft,
+            timerActive: data.isActive,
+            players: data.players
         });
     }
 }

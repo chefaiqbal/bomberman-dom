@@ -137,3 +137,30 @@ func broadcastMessage(msgType string, payload interface{}) {
 		}
 	}
 }
+
+func HandleChat(msg json.RawMessage) {
+	var chat ChatMessage
+	if err := json.Unmarshal(msg, &chat); err != nil {
+		log.Printf("Failed to unmarshal chat: %v", err)
+		return
+	}
+	broadcastMessage("chat", chat)
+}
+
+func HandleMove(msg json.RawMessage) {
+	var move Move
+	if err := json.Unmarshal(msg, &move); err != nil {
+		log.Printf("Failed to unmarshal move: %v", err)
+		return
+	}
+	broadcastMessage("move", move)
+}
+
+func HandleBomb(msg json.RawMessage) {
+	var bomb Bomb
+	if err := json.Unmarshal(msg, &bomb); err != nil {
+		log.Printf("Failed to unmarshal bomb: %v", err)
+		return
+	}
+	broadcastMessage("bomb", bomb)
+}
