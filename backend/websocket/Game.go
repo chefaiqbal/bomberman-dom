@@ -21,6 +21,12 @@ func Mapping(msg json.RawMessage) {
 		log.Printf("error in unmarshalling map: %s", err)
 		return
 	}
+	
+	// Store the map
+	mapMu.Lock()
+	currentMap = data.Mapp
+	mapMu.Unlock()
+	
 	log.Printf("map: %v", data.Mapp)
 	broadcastMessage("MAP", data.Mapp)
 }
@@ -72,6 +78,22 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 		return
 	}
 
+	// Validate session
+	sessionMu.RLock()
+	var validSession bool
+	for _, session := range sessions {
+		if session.PlayerID == player.ID {
+			validSession = true
+			break
+		}
+	}
+	sessionMu.RUnlock()
+
+	if !validSession {
+		log.Printf("Invalid session for player: %s", player.ID)
+		return
+	}
+
 	mu.Lock()
 	if gameStarted {
 		mu.Unlock()
@@ -82,42 +104,42 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 		sendWaitResponse(conn)
 		return
 	}
-	mu.Unlock()
 
-	log.Printf("Player joined with name: %s", player.ID)
-
-	client := &Client{
+	// Update client connection
+	(*clients)[player.ID] = &Client{
 		conn: conn,
 		ID:   player.ID,
 	}
 
-	mu.Lock()
-	(*clients)[client.ID] = client
-	mu.Unlock()
-
+	// Send current game state to the reconnected player
 	var clientList []Client
-	mu.Lock()
 	for _, c := range *clients {
 		clientList = append(clientList, *c)
 	}
+
+	// Send game state to the reconnected player
+	mapMu.RLock()
+	gameMap := currentMap
+	mapMu.RUnlock()
+
+	conn.WriteJSON(map[string]interface{}{
+		"type": "GAME_STATE",
+		"data": GameState{
+			Players:     clientList,
+			TimeLeft:    gameTimer.GetState()["timeLeft"].(int),
+			IsActive:    gameTimer.GetState()["isActive"].(bool),
+			ChatHistory: GetChatHistory(),
+			Map:         gameMap,
+		},
+	})
+
 	mu.Unlock()
 
+	// Broadcast updated player list to all clients
 	broadcastMessage("PLAYER_JOIN", clientList)
 
 	// Start timer if needed
 	if len(*clients) >= 2 && !gameTimer.GetState()["isActive"].(bool) && !gameStarted {
 		go gameTimer.Start()
 	}
-
-	// Send current game state to new player
-	gameState := GameState{
-		Players:  clientList,
-		TimeLeft: gameTimer.GetState()["timeLeft"].(int),
-		IsActive: gameTimer.GetState()["isActive"].(bool),
-	}
-
-	conn.WriteJSON(map[string]interface{}{
-		"type": "GAME_STATE",
-		"data": gameState,
-	})
 }

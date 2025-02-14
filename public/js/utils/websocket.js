@@ -2,24 +2,77 @@ export class WebSocketService {
     constructor(store, router) {
         this.store = store;
         this.router = router;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 3; // Increase reconnect attempts for refresh cases
+        this.setupWebSocket();
+    }
+    
+    setupWebSocket() {
         this.ws = new WebSocket(`ws://localhost:8080/ws`);
+        
+        // Check for existing session
+        const session = localStorage.getItem('gameSession');
+        if (session) {
+            const sessionData = JSON.parse(session);
+            // Set initial state but don't navigate yet
+            this.store.setState({
+                ...this.store.getState(),
+                playerName: sessionData.playerID,
+                sessionId: sessionData.sessionId,
+                isAuthenticated: true,
+                reconnecting: true
+            });
+        }
+        
         this.setupEventHandlers();
     }
     
-Waiting_Join(clients) {
-    clients.forEach(client => {
-        client.this.router.navigate("/lobby"); 
-    });
-}
+    clearSession() {
+        localStorage.removeItem('gameSession');
+        this.store.setState({
+            ...this.store.getState(),
+            isAuthenticated: false,
+            sessionId: null,
+            playerName: '',
+            players: [],
+            messages: [],
+            reconnecting: false
+        });
+        this.router.navigate('/');
+    }
+    
+    Waiting_Join(clients) {
+        this.router.navigate("/lobby");
+    }
+    
     setupEventHandlers() {
         this.ws.onopen = () => {
             console.log("WebSocket connection established.");
+            const session = localStorage.getItem('gameSession');
+            if (session) {
+                const sessionData = JSON.parse(session);
+                // Attempt to revalidate the session
+                this.authenticate(sessionData.playerID);
+            }
         };
+
         this.ws.onerror = (error) => {
             console.error("WebSocket error:", error);
+            this.clearSession();
         };
+
         this.ws.onclose = (event) => {
             console.log("WebSocket connection closed:", event);
+            
+            // On refresh or temporary disconnection, try to reconnect
+            if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                this.reconnectAttempts++;
+                console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+                setTimeout(() => this.setupWebSocket(), 1000);
+            } else {
+                // Only clear session if we've exhausted reconnection attempts
+                this.clearSession();
+            }
         };
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -30,6 +83,19 @@ Waiting_Join(clients) {
                 return;
             }
             switch (data.type) {
+                case 'CONNECTION_SUCCESS':
+                    // Handle initial connection
+                    if (this.store.getState().reconnecting) {
+                        const session = localStorage.getItem('gameSession');
+                        if (session) {
+                            const sessionData = JSON.parse(session);
+                            this.authenticate(sessionData.playerID);
+                        }
+                    }
+                    break;
+                case 'AUTH_RESPONSE':
+                    this.handleAuthResponse(data.data);
+                    break;
                 case 'chat':
                     this.handleChatMessage(data.data);
                     break;
@@ -60,6 +126,7 @@ Waiting_Join(clients) {
             }
         };
     }
+    
     sendMessage(type, payload) {
         if (this.ws.readyState === WebSocket.OPEN) {
             const message = {
@@ -69,6 +136,7 @@ Waiting_Join(clients) {
             this.ws.send(JSON.stringify(message));
         }
     }
+    
     handelMap(map) {
         console.log("Updating map:", map);
         this.store.setState({
@@ -76,6 +144,7 @@ Waiting_Join(clients) {
             map: map
         });
     }    
+    
     handleChatMessage(msg) {
         const state = this.store.getState();
         this.store.setState({
@@ -83,22 +152,41 @@ Waiting_Join(clients) {
             messages: [...state.messages, msg]
         });
     }
+    
     handlePlayerUpdate(players) {
         console.log("Updating players list", players);
+        const currentState = this.store.getState();
+        
         this.store.setState({
-            ...this.store.getState(),
-            players: players
+            ...currentState,
+            players: players,
+            isAuthenticated: true,
+            reconnecting: false
         });
+
+        // Navigate to lobby if not already there
+        if (!currentState.gameStarted && players && players.length > 0) {
+            this.router.navigate('/lobby');
+        }
     }
+    
     handleGameStart(data) {
         console.log("Game start received");
+        const currentState = this.store.getState();
+        
         this.store.setState({
-            ...this.store.getState(),
+            ...currentState,
             gameStartTimer: 0,
-            timerActive: false
+            timerActive: false,
+            gameStarted: true
         });
-        this.router.navigate('/game');
+
+        // Only navigate if we have a map
+        if (currentState.map) {
+            this.router.navigate('/game');
+        }
     }
+    
     handleTimerUpdate(data) {
         console.log("Timer update received:", data);
         const state = this.store.getState();
@@ -119,13 +207,60 @@ Waiting_Join(clients) {
             timerActive: data.isActive
         });
     }
+    
     handleGameState(data) {
         console.log("Game state received:", data);
+        
+        // Update the store with the full game state
         this.store.setState({
             ...this.store.getState(),
             gameStartTimer: data.timeLeft,
             timerActive: data.isActive,
-            players: data.players
+            players: data.players,
+            isAuthenticated: true,
+            messages: data.chatHistory || [],
+            map: data.map || null,
+            reconnecting: false
         });
+
+        // If we're reconnecting and have players, stay in lobby
+        if (this.store.getState().reconnecting && data.players && data.players.length > 0) {
+            this.router.navigate('/lobby');
+        }
+    }
+    
+    handleAuthResponse(data) {
+        if (data.sessionId && data.playerId) {
+            // Reset reconnect attempts on successful auth
+            this.reconnectAttempts = 0;
+            
+            localStorage.setItem('gameSession', JSON.stringify({
+                sessionId: data.sessionId,
+                playerID: data.playerId
+            }));
+            
+            this.store.setState({
+                ...this.store.getState(),
+                sessionId: data.sessionId,
+                playerName: data.playerId,
+                isAuthenticated: true,
+                reconnecting: false
+            });
+            
+            // After authentication, join the game
+            this.sendMessage('PLAYER_JOIN', {
+                id: data.playerId,
+                x: 0,
+                y: 0,
+                lives: 3
+            });
+        } else {
+            // Only clear session if auth explicitly fails
+            this.clearSession();
+        }
+    }
+    
+    authenticate(playerName) {
+        this.sendMessage('AUTH', { id: playerName });
     }
 }

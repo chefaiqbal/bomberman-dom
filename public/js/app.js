@@ -15,7 +15,8 @@ const initialState = {
     currentGame: null,
     wsConnected: false,
     map: null,
-    mapGen: false
+    mapGen: false,
+    reconnecting: false
 };
 
 export const store = createStore(initialState);

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"sync"
+	//"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -15,61 +15,120 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-type Client struct {
-	conn *websocket.Conn
-	ID   string
-}
-
-var (
+// Add an init function to clear all state when server starts
+func init() {
+	// Clear all maps and states
+	mu.Lock()
 	clients = make(map[string]*Client)
-	mu      sync.Mutex
 	WaitedClient = make(map[string]*Client)
-)
+	mu.Unlock()
+
+	// Clear sessions
+	sessionMu.Lock()
+	sessions = make(map[string]*Session)
+	sessionMu.Unlock()
+
+	// Clear chat history
+	chatHistory.mu.Lock()
+	chatHistory.Messages = make([]ChatMessage, 0)
+	chatHistory.mu.Unlock()
+
+	// Clear map
+	mapMu.Lock()
+	currentMap = nil
+	mapMu.Unlock()
+
+	// Reset game state
+	gameStarted = false
+
+	log.Println("Server state initialized")
+}
 
 func WsEndpoint(w http.ResponseWriter, r *http.Request) {
-    conn, err := upgrader.Upgrade(w, r, nil)
-    if err != nil {
-        http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
-        return
-    }
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		return true
+	}
+	
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
+		return
+	}
 
-    mu.Lock()
-    if len(clients) >= 4 {
-        mu.Unlock()
-        conn.WriteControl(
-            websocket.CloseMessage,
-            websocket.FormatCloseMessage(4000, "max players reached"),
-            time.Now().Add(time.Second),
-        )
-        conn.Close()
-        return
-    }
+	// Create initial client
+	client := &Client{
+		conn: conn,
+	}
 
-    client := &Client{
-        conn: conn,
-    }
+	mu.Lock()
+	// Check if this is a reconnecting client
+	var isReconnect bool
+	var oldClientID string
+	for id, c := range clients {
+		if c.conn != conn && c.ID != "" {
+			// Check if this is the same player trying to reconnect
+			session := ValidateSession(id)
+			if session != nil && session.PlayerID == id {
+				isReconnect = true
+				oldClientID = id
+				break
+			}
+		}
+	}
 
-    mu.Unlock()
+	// If it's a reconnection, remove the old client first
+	if isReconnect {
+		delete(clients, oldClientID)
+	}
 
-    defer func() {
-        mu.Lock()
-        delete(clients, client.ID)
-        mu.Unlock()
-        conn.Close()
-    }()
+	activePlayerCount := len(clients)
+	if !isReconnect && activePlayerCount >= 4 {
+		mu.Unlock()
+		conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(4000, "max players reached"),
+			time.Now().Add(time.Second),
+		)
+		conn.Close()
+		return
+	}
+	mu.Unlock()
 
-    if err := conn.WriteJSON(map[string]string{
-        "type":    "connection",
-        "message": "Connected successfully",
-    }); err != nil {
-        log.Printf("Initial write error: %v", err)
-        return
-    }
+	// Send initial connection success
+	if err := conn.WriteJSON(map[string]interface{}{
+		"type": "CONNECTION_SUCCESS",
+		"data": map[string]interface{}{
+			"message": "Connected successfully",
+			"activeClients": len(clients),
+		},
+	}); err != nil {
+		log.Printf("Initial write error: %v", err)
+		return
+	}
 
-    reader(conn)
+	// Handle cleanup on disconnect
+	defer func() {
+		mu.Lock()
+		if client.ID != "" {
+			delete(clients, client.ID)
+			// Remove the session when client disconnects
+			RemovePlayerSession(client.ID)
+			
+			// Only broadcast if there was an ID (player was actually in game)
+			var clientList []Client
+			for _, c := range clients {
+				clientList = append(clientList, *c)
+			}
+			if len(clientList) > 0 {
+				broadcastMessage("PLAYER_JOIN", clientList)
+			}
+		}
+		mu.Unlock()
+		conn.Close()
+	}()
+
+	reader(conn)
 }
-
-
 
 func reader(conn *websocket.Conn) {
 	for {
@@ -93,6 +152,13 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 	}
 
 	switch msg.MsgType {
+	case "AUTH":
+		if response := HandleAuth(msg.Msg); response != nil {
+			conn.WriteJSON(map[string]interface{}{
+				"type": "AUTH_RESPONSE",
+				"data": response,
+			})
+		}
 	case "CHAT":
 		HandleChat(msg.Msg)
 	case "MOVE":
@@ -144,7 +210,23 @@ func HandleChat(msg json.RawMessage) {
 		log.Printf("Failed to unmarshal chat: %v", err)
 		return
 	}
+
+	// Store the message in history
+	chatHistory.mu.Lock()
+	chatHistory.Messages = append(chatHistory.Messages, chat)
+	chatHistory.mu.Unlock()
+
 	broadcastMessage("chat", chat)
+}
+
+func GetChatHistory() []ChatMessage {
+	chatHistory.mu.RLock()
+	defer chatHistory.mu.RUnlock()
+	
+	// Create a copy of the messages
+	messages := make([]ChatMessage, len(chatHistory.Messages))
+	copy(messages, chatHistory.Messages)
+	return messages
 }
 
 func HandleMove(msg json.RawMessage) {
@@ -163,4 +245,46 @@ func HandleBomb(msg json.RawMessage) {
 		return
 	}
 	broadcastMessage("bomb", bomb)
+}
+
+func HandleAuth(msg json.RawMessage) *AuthResponse {
+	var player Player
+	if err := json.Unmarshal(msg, &player); err != nil {
+		return nil
+	}
+
+	sessionMu.RLock()
+	// Check for existing session
+	var existingSession *Session
+	for _, session := range sessions {
+		if session.PlayerID == player.ID {
+			existingSession = session
+			break
+		}
+	}
+	sessionMu.RUnlock()
+
+	// If player has existing session, validate and reconnect
+	if existingSession != nil {
+		mu.Lock()
+		// Update client connection if exists
+		if oldClient, exists := clients[player.ID]; exists {
+			oldClient.conn.Close() // Close old connection
+			delete(clients, player.ID)
+		}
+		mu.Unlock()
+		
+		// Return existing session
+		return &AuthResponse{
+			SessionID: existingSession.ID,
+			PlayerID: player.ID,
+		}
+	}
+
+	// Create new session for new player
+	session := CreateSession(player.ID)
+	return &AuthResponse{
+		SessionID: session.ID,
+		PlayerID: player.ID,
+	}
 }

@@ -11,20 +11,30 @@ export function Lobby({ store, router, ws }) {
     }
 
     if (!state.wsConnected) {
-        ws.sendMessage('PLAYER_JOIN', {
-            id: state.playerName,
-            x: 0,
-            y: 0,
-            lives: 3
-        });
-        store.setState({ ...state, wsConnected: true });
+        setTimeout(() => {
+            ws.sendMessage('PLAYER_JOIN', {
+                id: state.playerName,
+                x: 0,
+                y: 0,
+                lives: 3
+            });
+            store.setState({ ...state, wsConnected: true });
+        }, 100);
     }
 
     function renderPlayersList() {
         console.log("Current players:", state.players);
-        const playersList = state.players || [{ ID: state.playerName }];
+        const uniquePlayers = state.players.reduce((acc, current) => {
+            const x = acc.find(item => item.ID === current.ID);
+            if (!x) {
+                return acc.concat([current]);
+            } else {
+                return acc;
+            }
+        }, []);
+
         return createElement('div', { id: 'players-list', class: 'space-y-3' },
-            ...playersList.map(player =>
+            ...uniquePlayers.map(player =>
                 createElement('div', { class: 'flex items-center p-4 border rounded-lg bg-gray-50' },
                     createElement('div', { class: 'w-3 h-3 rounded-full bg-green-500 mr-3' }),
                     createElement('span', { class: 'text-lg text-gray-700' }, player.ID),
@@ -38,13 +48,17 @@ export function Lobby({ store, router, ws }) {
     function updatePlayersList() {
         const playersListContainer = document.getElementById('players-list');
         if (playersListContainer) {
-            playersListContainer.innerHTML = '';
-            render(renderPlayersList(), playersListContainer); 
+            render(renderPlayersList(), playersListContainer);
         }
     }
 
     store.subscribe((newState) => {
-        if (newState.players.length !== state.players.length) {
+        const oldPlayerIds = new Set(state.players.map(p => p.ID));
+        const newPlayerIds = new Set(newState.players.map(p => p.ID));
+        
+        if (oldPlayerIds.size !== newPlayerIds.size || 
+            [...oldPlayerIds].some(id => !newPlayerIds.has(id)) ||
+            [...newPlayerIds].some(id => !oldPlayerIds.has(id))) {
             state = newState;
             updatePlayersList();
         }

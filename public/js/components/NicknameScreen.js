@@ -1,6 +1,28 @@
 import { createElement } from '../core/dom.js';
 
-export function NicknameScreen({ store, router }) {
+export function NicknameScreen({ store, router, ws }) {
+    const state = store.getState();
+    
+    // If we have an active session and we're reconnecting, go to lobby
+    if (state.sessionId && state.isAuthenticated) {
+        router.navigate('/lobby');
+        return null;
+    }
+
+    // Only clear session if we don't have one
+    if (!state.sessionId) {
+        localStorage.removeItem('gameSession');
+        store.setState({
+            ...state,
+            isAuthenticated: false,
+            sessionId: null,
+            playerName: '',
+            players: [],
+            messages: [],
+            reconnecting: false
+        });
+    }
+
     function handleSubmit(e) {
         e.preventDefault();
         const nickname = e.target.elements.nickname.value.trim();
@@ -8,10 +30,9 @@ export function NicknameScreen({ store, router }) {
         if (nickname.length >= 3 && nickname.length <= 15) {
             store.setState({
                 ...store.getState(),
-                playerName: nickname,
-                isAuthenticated: true
+                playerName: nickname
             });
-            router.navigate('/lobby');
+            ws.authenticate(nickname);
         }
     }
 

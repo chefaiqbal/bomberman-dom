@@ -1,13 +1,17 @@
 package main
 
 import (
+    "context"
     "fmt"
     "log"
     "mime"
     "net/http"
     "os"
+    "os/signal"
     "path/filepath"
     "strings"
+    "syscall"
+    "time"
     ws "bomber/websocket"
 )
 
@@ -86,8 +90,39 @@ func main() {
     http.Handle("/", spa)
 
     port := ":8080"
-    fmt.Printf("Server starting on http://localhost%s\n", port)
-    if err := http.ListenAndServe(port, nil); err != nil {
-        log.Fatal("Server failed to start:", err)
+
+    // Create a channel to handle shutdown
+    stop := make(chan os.Signal, 1)
+    signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+    // Start server in a goroutine
+    server := &http.Server{
+        Addr:    port,
+        Handler: nil,
     }
+    
+    go func() {
+        fmt.Printf("Server starting on http://localhost%s\n", port)
+        if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            log.Fatal("Server failed to start:", err)
+        }
+    }()
+
+    // Wait for interrupt signal
+    <-stop
+    fmt.Println("\nShutting down server...")
+
+    // Create shutdown context with timeout
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    // Cleanup sessions
+    ws.CleanupOldSessions()
+
+    // Shutdown server
+    if err := server.Shutdown(ctx); err != nil {
+        log.Fatal("Server forced to shutdown:", err)
+    }
+
+    fmt.Println("Server exited properly")
 }

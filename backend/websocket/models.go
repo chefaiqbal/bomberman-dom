@@ -1,6 +1,11 @@
 package bomber
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"sync"
+	"time"
+	"github.com/gorilla/websocket"
+)
 
 type Msg struct {
 	MsgType string `json:"msgType"`
@@ -42,7 +47,45 @@ type GameMessage struct {
 }
 
 type GameState struct {
-	Players  []Client    `json:"players"`
-	TimeLeft int         `json:"timeLeft"`
-	IsActive bool        `json:"isActive"`
+	Players     []Client      `json:"players"`
+	TimeLeft    int          `json:"timeLeft"`
+	IsActive    bool         `json:"isActive"`
+	ChatHistory []ChatMessage `json:"chatHistory"`
+	Map         [][]int      `json:"map"`
 }
+
+// Add these new types
+type Session struct {
+	ID        string    `json:"id"`
+	PlayerID  string    `json:"playerId"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type AuthResponse struct {
+	SessionID string `json:"sessionId"`
+	PlayerID  string `json:"playerId"`
+}
+
+// Add this to the models
+type ChatHistory struct {
+	Messages []ChatMessage
+	mu       sync.RWMutex
+}
+
+// Add this with the other structs
+type Client struct {
+	conn *websocket.Conn
+	ID   string
+}
+
+// Package variables
+var (
+	clients = make(map[string]*Client)
+	mu      sync.Mutex
+	WaitedClient = make(map[string]*Client)
+	chatHistory = &ChatHistory{
+		Messages: make([]ChatMessage, 0),
+	}
+	currentMap [][]int
+	mapMu sync.RWMutex
+)
