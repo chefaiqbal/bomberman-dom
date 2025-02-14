@@ -33,20 +33,37 @@ export function Lobby({ store, router, ws }) {
             }
         }, []);
 
-        return createElement('div', { id: 'players-list', class: 'space-y-3' },
-            ...uniquePlayers.map(player =>
-                createElement('div', { class: 'flex items-center p-4 border rounded-lg bg-gray-50' },
-                    createElement('div', { class: 'w-3 h-3 rounded-full bg-green-500 mr-3' }),
-                    createElement('span', { class: 'text-lg text-gray-700' }, player.ID),
-                    player.ID === state.playerName && 
-                        createElement('span', { class: 'ml-2 text-sm text-gray-500' }, '(You)')
+        return createElement('div', { class: 'space-y-4' },
+            createElement('div', { 
+                class: 'flex justify-between items-center mb-4 p-3 bg-blue-50 rounded-lg'
+            },
+                createElement('span', { class: 'text-lg font-semibold text-blue-800' }, 
+                    'Players List'
+                ),
+                createElement('span', { 
+                    class: `text-lg font-bold ${uniquePlayers.length === 4 ? 'text-green-600' : 'text-blue-600'}`
+                }, 
+                    `${uniquePlayers.length}/4 Players`
+                )
+            ),
+            createElement('div', { 
+                id: 'players-list', 
+                class: 'space-y-3' 
+            },
+                ...uniquePlayers.map(player =>
+                    createElement('div', { class: 'flex items-center p-4 border rounded-lg bg-gray-50' },
+                        createElement('div', { class: 'w-3 h-3 rounded-full bg-green-500 mr-3' }),
+                        createElement('span', { class: 'text-lg text-gray-700' }, player.ID),
+                        player.ID === state.playerName && 
+                            createElement('span', { class: 'ml-2 text-sm text-gray-500' }, '(You)')
+                    )
                 )
             )
         );
     }
 
     function updatePlayersList() {
-        const playersListContainer = document.getElementById('players-list');
+        const playersListContainer = document.getElementById('players-list')?.parentElement;
         if (playersListContainer) {
             render(renderPlayersList(), playersListContainer);
         }
