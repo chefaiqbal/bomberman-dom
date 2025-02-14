@@ -1,5 +1,6 @@
 import { createElement, render, createStore } from "../core/index.js";
 import { ws, store } from "../app.js"; 
+import { placeBomb, createExplosion } from "./Bomb.js";
 
 const tileSize = 50;
 const frameWidth = 50;
@@ -112,6 +113,15 @@ document.onkeydown = function (e) {
         frameIndex: (state.frameIndex + 1) % 3  
     });
 }
+
+    // Add bomb placement on spacebar
+    if (e.key === " ") {
+        const bombElement = placeBomb(state.x, state.y, states.playerName);
+        const mapElement = document.querySelector(".map");
+        if (mapElement) {
+            render(bombElement, mapElement);
+        }
+    }
 };
 function detectCollision(x, y) {
     const state = store.getState();
@@ -127,3 +137,20 @@ function detectCollision(x, y) {
     return map[col][row] === 1 || map[col][row] === 2;
 }
 gameLoop();
+
+// Add this function to handle bomb explosions
+export function handleBombExplosion(x, y, radius) {
+    const explosions = createExplosion(x, y, radius);
+    const mapElement = document.querySelector(".map");
+    
+    explosions.forEach(explosion => {
+        render(explosion, mapElement);
+    });
+
+    // Remove explosions after animation
+    setTimeout(() => {
+        document.querySelectorAll(".explosion").forEach(el => {
+            el.remove();
+        });
+    }, 1000);
+}

@@ -22,10 +22,12 @@ type Move struct {
 }
 
 type Bomb struct {
-	X      int    `json:"x"`
-	Y      int    `json:"y"`
-	Timer  int    `json:"timer"`
-	Owner  string `json:"owner"`
+	X          int    `json:"x"`
+	Y          int    `json:"y"`
+	Timer      int    `json:"timer"`
+	Owner      string `json:"owner"`
+	Radius     int    `json:"radius"`
+	Exploded   bool   `json:"exploded"`
 }
 
 type Player struct {
@@ -52,6 +54,7 @@ type GameState struct {
 	IsActive    bool         `json:"isActive"`
 	ChatHistory []ChatMessage `json:"chatHistory"`
 	Map         [][]int      `json:"map"`
+	Bombs       []Bomb       `json:"bombs"`
 }
 
 // Add these new types
@@ -88,4 +91,6 @@ var (
 	}
 	currentMap [][]int
 	mapMu sync.RWMutex
+	activeBombs = make([]Bomb, 0)
+	bombMu      sync.RWMutex
 )

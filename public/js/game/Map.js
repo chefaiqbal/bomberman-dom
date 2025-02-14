@@ -1,4 +1,3 @@
-
 import { createElement,render } from "../core/dom.js";
 import { renderPlayer } from "../game/Player.js"; 
 
@@ -53,6 +52,22 @@ export function renderMap(map) {
       })
     ), renderPlayer()
   );        
+}
+
+export function updateMapTile(x, y, newValue) {
+    const tileX = Math.floor(x / 50);
+    const tileY = Math.floor(y / 50);
+    
+    if (temp[tileY] && temp[tileY][tileX] === 2) { // Only destroy breakable walls
+        temp[tileY][tileX] = 0;
+        
+        // Update the visual representation
+        const mapElement = document.querySelector(".map");
+        const tileElement = mapElement.children[tileY * 15 + tileX];
+        if (tileElement) {
+            tileElement.style.background = 'green';
+        }
+    }
 }
 
   

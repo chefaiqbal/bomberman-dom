@@ -16,7 +16,7 @@ type GameTimer struct {
 
 func NewGameTimer(broadcast func(string, interface{})) *GameTimer {
 	return &GameTimer{
-		timeLeft:  30, // 30 seconds countdown
+		timeLeft:  5, // 30 seconds countdown
 		isActive:  false,
 		broadcast: broadcast,
 	}
@@ -29,7 +29,7 @@ func (t *GameTimer) Start() {
 		return
 	}
 	t.isActive = true
-	t.timeLeft = 30
+	t.timeLeft = 5
 	t.mu.Unlock()
 
 	t.ticker = time.NewTicker(1 * time.Second)

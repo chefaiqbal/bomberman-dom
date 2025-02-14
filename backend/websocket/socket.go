@@ -244,7 +244,75 @@ func HandleBomb(msg json.RawMessage) {
 		log.Printf("Failed to unmarshal bomb: %v", err)
 		return
 	}
-	broadcastMessage("bomb", bomb)
+
+	// Add bomb to active bombs
+	bombMu.Lock()
+	activeBombs = append(activeBombs, bomb)
+	bombMu.Unlock()
+
+	// Broadcast bomb placement
+	broadcastMessage("BOMB_PLACE", bomb)
+
+	// Start bomb timer
+	go func() {
+		time.Sleep(time.Duration(bomb.Timer) * time.Millisecond)
+		
+		// Handle explosion
+		bombMu.Lock()
+		// Find and remove the bomb
+		for i, b := range activeBombs {
+			if b.X == bomb.X && b.Y == bomb.Y && b.Owner == bomb.Owner {
+				activeBombs = append(activeBombs[:i], activeBombs[i+1:]...)
+				break
+			}
+		}
+		bombMu.Unlock()
+
+		// Update map for explosion
+		mapMu.Lock()
+		// Check each direction
+		directions := [][2]int{{0,0}, {1,0}, {-1,0}, {0,1}, {0,-1}}
+		destroyedTiles := make([]struct{X,Y int}, 0)
+		
+		for _, dir := range directions {
+			for i := 0; i <= bomb.Radius; i++ {
+				newX := bomb.X + (dir[0] * i * 50)
+				newY := bomb.Y + (dir[1] * i * 50)
+				
+				// Convert to grid coordinates
+				gridX := newX / 50
+				gridY := newY / 50
+				
+				// Check bounds
+				if gridY >= 0 && gridY < len(currentMap) && gridX >= 0 && gridX < len(currentMap[0]) {
+					// If destructible wall
+					if currentMap[gridY][gridX] == 2 {
+						currentMap[gridY][gridX] = 0
+						destroyedTiles = append(destroyedTiles, struct{X,Y int}{X: gridX, Y: gridY})
+					}
+					// If indestructible wall, stop explosion in this direction
+					if currentMap[gridY][gridX] == 1 {
+						break
+					}
+				}
+			}
+		}
+		mapMu.Unlock()
+
+		// Broadcast explosion
+		explosion := struct {
+			BombX, BombY int
+			Radius       int
+			Destroyed   []struct{X,Y int}
+		}{
+			BombX: bomb.X,
+			BombY: bomb.Y,
+			Radius: bomb.Radius,
+			Destroyed: destroyedTiles,
+		}
+		
+		broadcastMessage("BOMB_EXPLODE", explosion)
+	}()
 }
 
 func HandleAuth(msg json.RawMessage) *AuthResponse {

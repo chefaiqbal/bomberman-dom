@@ -121,6 +121,12 @@ export class WebSocketService {
                 case 'GAME_STATE':
                     this.handleGameState(data.data);
                     break;
+                case 'BOMB_PLACE':
+                    this.handleBombPlace(data.data);
+                    break;
+                case 'BOMB_EXPLODE':
+                    this.handleBombExplode(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -262,5 +268,64 @@ export class WebSocketService {
     
     authenticate(playerName) {
         this.sendMessage('AUTH', { id: playerName });
+    }
+
+    handleBombPlace(bombData) {
+        const { x, y, owner } = bombData;
+        const mapElement = document.querySelector(".map");
+        if (!mapElement) return;
+
+        // Create and render bomb element
+        const bombElement = document.createElement('div');
+        bombElement.className = 'bomb';
+        bombElement.style.cssText = `
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            left: ${x + 5}px;
+            top: ${y + 5}px;
+            background-image: url('/static/img/Bomb.png');
+            background-size: contain;
+            z-index: 1;
+        `;
+        
+        mapElement.appendChild(bombElement);
+    }
+
+    handleBombExplode(explosionData) {
+        const { BombX, BombY, Radius, Destroyed } = explosionData;
+        
+        // Remove the bomb element
+        const bombs = document.querySelectorAll('.bomb');
+        bombs.forEach(bomb => {
+            const bombX = parseInt(bomb.style.left) - 5;
+            const bombY = parseInt(bomb.style.top) - 5;
+            if (bombX === BombX && bombY === BombY) {
+                bomb.remove();
+            }
+        });
+
+        // Create explosion animation
+        const mapElement = document.querySelector(".map");
+        if (!mapElement) return;
+
+        // Update destroyed tiles
+        Destroyed.forEach(({X, Y}) => {
+            const tileElement = mapElement.children[Y * 15 + X];
+            if (tileElement) {
+                tileElement.style.background = 'green';
+            }
+        });
+
+        // Create explosion effects
+        const explosions = createExplosion(BombX, BombY, Radius);
+        explosions.forEach(explosion => {
+            mapElement.appendChild(explosion);
+        });
+
+        // Remove explosion effects after animation
+        setTimeout(() => {
+            document.querySelectorAll('.explosion').forEach(el => el.remove());
+        }, 1000);
     }
 }
