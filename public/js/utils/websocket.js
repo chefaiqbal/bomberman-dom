@@ -108,6 +108,7 @@ export class WebSocketService {
                 case "BOMB":
                     break;
                 case "MOVE":
+                    this.handelMove(data.data);
                     break;
                 case "Waiting_Join":
                     this.Waiting_Join(data.data, this.router);
@@ -141,6 +142,18 @@ export class WebSocketService {
             };
             this.ws.send(JSON.stringify(message));
         }
+    }
+
+    handelMove(moveData) {
+        const direction = moveData.direction;
+        const playerName = moveData.playerName;
+        const newX = moveData.x;
+        const newY = moveData.y;        
+        console.log(`Player ${playerName} moved ${direction} to (${newX}, ${newY})`);
+
+        const state = this.store.getState();
+        const players = state.players;
+
     }
     
     handelMap(map) {

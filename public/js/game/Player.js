@@ -94,16 +94,16 @@ document.onkeydown = function (e) {
     let newX = state.x, newY = state.y;
     
     if (e.key === "ArrowLeft") {newX -= tileSize;
-        ws.sendMessage("MOVE", {direction: "LEFT", playerName: states.playerName });
+        ws.sendMessage("MOVE", {direction: "LEFT", playerName: states.playerName, x: newX, y: newY });
     };
     if (e.key === "ArrowRight") {newX += tileSize;
-        ws.sendMessage("MOVE", {direction: "Right", playerName: states.playerName  });
+        ws.sendMessage("MOVE", {direction: "Right", playerName: states.playerName, x: newX, y: newY });
     };
     if (e.key === "ArrowUp") {newY -= tileSize;
-        ws.sendMessage("MOVE", {direction: "UP" , playerName: states.playerName });
+        ws.sendMessage("MOVE", {direction: "UP" , playerName: states.playerName, x: newX, y: newY });
     };
     if (e.key === "ArrowDown") {newY += tileSize;
-        ws.sendMessage("MOVE", {direction: "DOWN" , playerName: states.playerName });
+        ws.sendMessage("MOVE", {direction: "DOWN" , playerName: states.playerName, x: newX, y: newY });
     };
     if (!detectCollision(newX,newY)){
     playerStore.setState({

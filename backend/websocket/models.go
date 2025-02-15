@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"sync"
 	"time"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -17,8 +18,10 @@ type Chat struct {
 }
 
 type Move struct {
-	Direction  string `json:"direction"`
-	PlayerName string `json:"playerName"`
+    Direction  string `json:"direction"`
+    PlayerName string `json:"playerName"`
+    X          int    `json:"x"`
+    Y          int    `json:"y"`
 }
 
 type Bomb struct {

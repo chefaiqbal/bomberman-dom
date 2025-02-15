@@ -235,7 +235,7 @@ func HandleMove(msg json.RawMessage) {
 		log.Printf("Failed to unmarshal move: %v", err)
 		return
 	}
-	broadcastMessage("move", move)
+	broadcastMessage("MOVE", move)
 }
 
 func HandleBomb(msg json.RawMessage) {
