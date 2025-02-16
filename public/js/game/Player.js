@@ -75,8 +75,6 @@ export function renderPlayer() {
         });
     });
 }
-
-
 function gameLoop() {
     Object.keys(playerStores).forEach(playerID => {
         const state = playerStores[playerID].getState();
@@ -90,15 +88,16 @@ function gameLoop() {
             else y = targetY;
             
             playerStores[playerID].setState({ ...state, x, y });
-
             if (x === targetX && y === targetY) {
                 playerStores[playerID].setState({ ...playerStores[playerID].getState(), moving: false });
             }
-            updateCharacter(playerID);
+            // updateCharacter(playerID);
         }
     });
     requestAnimationFrame(gameLoop);
 }
+
+
 
 // Handle keyboard inputs for movement
 document.onkeydown = function (e) {
@@ -163,6 +162,44 @@ function detectCollision(x, y) {
 }
 
 
+function updatePlayerPose() {
+    try {
+        if (!store) {
+            throw new Error('Store is not initialized.');
+        }
+
+        store.subscribe((state) => {
+            const players = state.players;
+
+            players.forEach(player => {
+                if (playerStores[player.ID]) {
+                    const playerState = playerStores[player.ID].getState();
+
+                    if (player.x !== playerState.x || player.y !== playerState.y) {
+                        if (!detectCollision(player.x, player.y)) {
+                            playerStores[player.ID].setState({
+                                ...playerState,
+                                x: player.x,        
+                                y: player.y,
+                                moving: false,     
+                                direction: directions[player.direction] || playerState.direction,
+                                frameIndex: (playerState.frameIndex + 1) % 3
+                            });
+                            updateCharacter(player.ID);  
+                        } else {
+                            console.log(`Collision detected for player ${player.ID} at (${player.x}, ${player.y})`);
+                        }
+                    }
+                }
+            });
+        });
+
+    } catch (error) {
+        console.error('Error in updatePlayerPose:', error.message);
+    }
+}
+
+
 export function handleBombExplosion(x, y, radius) {
     const explosions = createExplosion(x, y, radius);
     const mapElement = document.querySelector(".map");
@@ -180,4 +217,6 @@ export function handleBombExplosion(x, y, radius) {
 }
 
 gameLoop();
-
+setTimeout(() => {
+    updatePlayerPose(); 
+}, 100);

@@ -145,17 +145,22 @@ export class WebSocketService {
     }
 
     handelMove(moveData) {
-        const direction = moveData.direction;
-        const playerName = moveData.playerName;
-        const newX = moveData.x;
-        const newY = moveData.y;        
-        console.log(`Player ${playerName} moved ${direction} to (${newX}, ${newY})`);
-
-        const state = this.store.getState();
-        const players = state.players;
-
-    }
+        const { direction, playerName, x, y } = moveData;
+        console.log(`Player ${playerName} moved ${direction} to (${x}, ${y})`);
     
+        const state = this.store.getState();
+        const players = state.players.map(player => 
+            player.ID === playerName ? { ...player, x, y } : player
+        );
+    
+        this.store.setState({
+            ...state,
+            players
+        });
+
+        console.log("Updated state:", this.store.getState());
+    }
+        
     handelMap(map) {
         console.log("Updating map:", map);
         this.store.setState({
