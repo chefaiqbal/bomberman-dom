@@ -21,14 +21,18 @@ const playerStore = createStore({
     moving: false, movingDirection: null
 });
 function updateCharacter() {
-    const characterEl = document.querySelector(".player");
+    const states = store.getState();
+    const playerName = states.playerName; 
+    const characterEl = document.querySelector(`.player[data-name="${playerName}"]`); 
+
     if (!characterEl) return;
-    
+
     const { x, y, direction, frameIndex } = playerStore.getState();
     characterEl.style.left = `${x}px`;
     characterEl.style.top = `${y}px`;
     characterEl.style.backgroundPosition = `-${frameIndex * frameWidth}px -${direction * frameHeight}px`;
 }
+
 
 export function renderPlayer() {
     const states = store.getState();
