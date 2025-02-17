@@ -73,6 +73,7 @@ function createPlayerLives() {
 
 export function GameBoard({ store, router, ws }) {
     const state = store.getState();
+    let chatVisible = false;
     
     const players = [
         { name: state.playerName },
@@ -80,6 +81,14 @@ export function GameBoard({ store, router, ws }) {
             .filter(player => player.ID !== state.playerName)
             .map(player => ({ name: player.ID }))
     ].filter(player => player.name);
+
+    function toggleChat() {
+        chatVisible = !chatVisible;
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+            chatContainer.style.display = chatVisible ? 'block' : 'none';
+        }
+    }
 
     return createElement(
         'div',
@@ -105,9 +114,16 @@ export function GameBoard({ store, router, ws }) {
             ),
             createPlayerList(players),
             createTimer(),
+            createElement('img', {
+                src: '/static/img/chatlogo.png',
+                alt: 'Chat',
+                style: 'position: absolute; right: 20px; top: 120px; width: 40px; height: 40px; cursor: pointer;',
+                onclick: toggleChat
+            }),
             createElement('div', 
                 {
-                    style: 'position: absolute; right: 20px; top: 120px; width: 200px; height: 50px;'
+                    class: 'chat-container',
+                    style: 'display: none; position: absolute; right: 20px; top: 170px; width: 300px; height: 400px;'
                 },
                 Chat({ store, ws })
             ),
