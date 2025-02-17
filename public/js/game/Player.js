@@ -219,4 +219,4 @@ export function handleBombExplosion(x, y, radius) {
 gameLoop();
 setTimeout(() => {
     updatePlayerPose(); 
-}, 100);
+}, 50);
