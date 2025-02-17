@@ -1,5 +1,6 @@
 import { createElement, render } from "../core/dom.js";
 import { renderMap } from "../game/Map.js";
+import { Chat } from './Chat.js';
 
 function createPlayerList(players) {
     return createElement(
@@ -104,6 +105,12 @@ export function GameBoard({ store, router, ws }) {
             ),
             createPlayerList(players),
             createTimer(),
+            createElement('div', 
+                {
+                    style: 'position: absolute; right: 20px; top: 120px; width: 200px; height: 50px;'
+                },
+                Chat({ store, ws })
+            ),
             createPlayerLives()
         ]
     );
