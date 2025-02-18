@@ -145,12 +145,12 @@ export class WebSocketService {
     }
 
     handelMove(moveData) {
-        const { direction, playerName, x, y } = moveData;
-        console.log(`Player ${playerName} moved ${direction} to (${x}, ${y})`);
+        const { direction, playerName, x, y,  frameIndex} = moveData;
+        console.log(`Player ${playerName} moved ${direction} to (${x}, ${y}) frameIndex: ${frameIndex}`);
     
         const state = this.store.getState();
         const players = state.players.map(player => 
-            player.ID === playerName ? { ...player, x, y } : player
+            player.ID === playerName ? { ...player, x, y, frameIndex,direction } : player
         );
     
         this.store.setState({

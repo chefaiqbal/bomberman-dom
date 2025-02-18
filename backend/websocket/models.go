@@ -22,6 +22,7 @@ type Move struct {
     PlayerName string `json:"playerName"`
     X          int    `json:"x"`
     Y          int    `json:"y"`
+	FrameIndex int   `json:"frameIndex"`
 }
 
 type Bomb struct {

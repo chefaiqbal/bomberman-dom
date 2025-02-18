@@ -36,6 +36,7 @@ function updateCharacter(playerID) {
     if (!characterEl || !playerStores[playerID]) return;
 
     const { x, y, direction, frameIndex } = playerStores[playerID].getState();
+    console.log("x:", x, "y:", y, "direction:", direction, "frameIndex:", frameIndex);
     characterEl.style.left = `${x}px`;
     characterEl.style.top = `${y}px`;
     characterEl.style.backgroundPosition = `-${frameIndex * frameWidth}px -${direction * frameHeight}px`;
@@ -107,24 +108,25 @@ document.onkeydown = function (e) {
 
     const state = playerStores[playerID].getState();
     if (state.moving) return;
-    
-    let newX = state.x, newY = state.y;
-    
+    console.log('Player State:       dcc', state);
+    let newX = state.x, newY = state.y, frameIndex = state.frameIndex;
+    console.log('frameIndex State:       dcc', frameIndex);
+
     if (e.key === "ArrowLeft") {
         newX -= tileSize;
-        ws.sendMessage("MOVE", { direction: "LEFT", playerName: playerID, x: newX, y: newY });
+        ws.sendMessage("MOVE", { direction: "ArrowLeft", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (e.key === "ArrowRight") {
         newX += tileSize;
-        ws.sendMessage("MOVE", { direction: "RIGHT", playerName: playerID, x: newX, y: newY });
+        ws.sendMessage("MOVE", { direction: "ArrowRight", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (e.key === "ArrowUp") {
         newY -= tileSize;
-        ws.sendMessage("MOVE", { direction: "UP", playerName: playerID, x: newX, y: newY });
+        ws.sendMessage("MOVE", { direction: "ArrowUp", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (e.key === "ArrowDown") {
         newY += tileSize;
-        ws.sendMessage("MOVE", { direction: "DOWN", playerName: playerID, x: newX, y: newY });
+        ws.sendMessage("MOVE", { direction: "ArrowDown" , playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
 
     if (!detectCollision(newX, newY)) {
@@ -170,7 +172,6 @@ function updatePlayerPose() {
 
         store.subscribe((state) => {
             const players = state.players;
-
             players.forEach(player => {
                 if (playerStores[player.ID]) {
                     const playerState = playerStores[player.ID].getState();
@@ -182,8 +183,8 @@ function updatePlayerPose() {
                                 x: player.x,        
                                 y: player.y,
                                 moving: false,     
-                                direction: directions[player.direction] || playerState.direction,
-                                frameIndex: (playerState.frameIndex + 1) % 3
+                                direction: directions[player.direction],
+                                frameIndex: (player.frameIndex + 1) % 3
                             });
                             updateCharacter(player.ID);  
                         } else {
