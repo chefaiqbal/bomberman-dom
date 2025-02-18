@@ -9,7 +9,7 @@ import (
 )
 
 type Msg struct {
-	MsgType string `json:"msgType"`
+	MsgType string          `json:"msgType"`
 	Msg     json.RawMessage `json:"msg"`
 }
 
@@ -18,19 +18,20 @@ type Chat struct {
 }
 
 type Move struct {
-    Direction  string `json:"direction"`
-    PlayerName string `json:"playerName"`
-    X          int    `json:"x"`
-    Y          int    `json:"y"`
+	Direction  string `json:"direction"`
+	PlayerName string `json:"playerName"`
+	X          int    `json:"x"`
+	Y          int    `json:"y"`
 }
 
 type Bomb struct {
-	X          int    `json:"x"`
-	Y          int    `json:"y"`
-	Timer      int    `json:"timer"`
-	Owner      string `json:"owner"`
-	Radius     int    `json:"radius"`
-	Exploded   bool   `json:"exploded"`
+	X        int    `json:"x"`
+	Y        int    `json:"y"`
+	Timer    int    `json:"timer"` // Time left in milliseconds
+	Owner    string `json:"owner"`
+	Radius   int    `json:"radius"`
+	Exploded bool   `json:"exploded"` // Whether bomb has exploded
+	PlacedAt int64  `json:"placedAt"` // Unix timestamp when bomb was placed
 }
 
 type Player struct {
@@ -53,11 +54,11 @@ type GameMessage struct {
 
 type GameState struct {
 	Players     []Client      `json:"players"`
-	TimeLeft    int          `json:"timeLeft"`
-	IsActive    bool         `json:"isActive"`
+	TimeLeft    int           `json:"timeLeft"`
+	IsActive    bool          `json:"isActive"`
 	ChatHistory []ChatMessage `json:"chatHistory"`
-	Map         [][]int      `json:"map"`
-	Bombs       []Bomb       `json:"bombs"`
+	Map         [][]int       `json:"map"`
+	Bombs       []Bomb        `json:"bombs"`
 }
 
 // Add these new types
@@ -86,14 +87,14 @@ type Client struct {
 
 // Package variables
 var (
-	clients = make(map[string]*Client)
-	mu      sync.Mutex
+	clients      = make(map[string]*Client)
+	mu           sync.Mutex
 	WaitedClient = make(map[string]*Client)
-	chatHistory = &ChatHistory{
+	chatHistory  = &ChatHistory{
 		Messages: make([]ChatMessage, 0),
 	}
-	currentMap [][]int
-	mapMu sync.RWMutex
+	currentMap  [][]int
+	mapMu       sync.RWMutex
 	activeBombs = make([]Bomb, 0)
 	bombMu      sync.RWMutex
 )

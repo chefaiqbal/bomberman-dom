@@ -3,9 +3,11 @@ package bomber
 import (
 	"encoding/json"
 	"log"
+	//"time"
+
+	"bomber/websocket/timer"
 
 	"github.com/gorilla/websocket"
-	"bomber/websocket/timer"
 )
 
 var gameStarted = false
@@ -21,12 +23,12 @@ func Mapping(msg json.RawMessage) {
 		log.Printf("error in unmarshalling map: %s", err)
 		return
 	}
-	
+
 	// Store the map
 	mapMu.Lock()
 	currentMap = data.Mapp
 	mapMu.Unlock()
-	
+
 	log.Printf("map: %v", data.Mapp)
 	broadcastMessage("MAP", data.Mapp)
 }
@@ -41,23 +43,23 @@ func GameDone() {
 
 	mu.Lock()
 
-		for id := range clients {
-        	delete(clients, id)
-    	}
+	for id := range clients {
+		delete(clients, id)
+	}
 
-		counter := 0
-		for id, w := range WaitedClient {
-			if  counter <= 4 {
-				clients[id] = w
-				delete(WaitedClient, id)
-				counter++
-			}else {
-				break;
-			}
+	counter := 0
+	for id, w := range WaitedClient {
+		if counter <= 4 {
+			clients[id] = w
+			delete(WaitedClient, id)
+			counter++
+		} else {
+			break
 		}
+	}
 	mu.Unlock()
 
-	broadcastMessage("Waiting_Join", clients);
+	broadcastMessage("Waiting_Join", clients)
 }
 
 func sendWaitResponse(conn *websocket.Conn) {
@@ -72,7 +74,7 @@ func sendWaitResponse(conn *websocket.Conn) {
 
 func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocket.Conn, WaitedClient *map[string]*Client) {
 	var player Player
-	
+
 	if err := json.Unmarshal(msg, &player); err != nil {
 		log.Printf("Failed to unmarshal player: %v", err)
 		return
@@ -142,4 +144,38 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 	if len(*clients) >= 2 && !gameTimer.GetState()["isActive"].(bool) && !gameStarted {
 		go gameTimer.Start()
 	}
+}
+
+func calculateDestroyedBlocks(x, y, radius int) []struct{ X, Y int } {
+	var destroyed []struct{ X, Y int }
+	directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+
+	mapMu.RLock()
+	defer mapMu.RUnlock()
+
+	for _, dir := range directions {
+		for i := 0; i <= radius; i++ {
+			newX := x/50 + (dir[0] * i)
+			newY := y/50 + (dir[1] * i)
+
+			// Check map bounds
+			if newX < 0 || newY < 0 || newX >= len(currentMap[0]) || newY >= len(currentMap) {
+				break
+			}
+
+			// If we hit a wall, stop in this direction
+			if currentMap[newY][newX] == 1 {
+				break
+			}
+
+			// If we hit a destructible block, add it to destroyed list
+			if currentMap[newY][newX] == 2 {
+				destroyed = append(destroyed, struct{ X, Y int }{newX, newY})
+				currentMap[newY][newX] = 0 // Update the map
+				break
+			}
+		}
+	}
+
+	return destroyed
 }
