@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
 	//"sync"
 	"time"
 
@@ -48,7 +49,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
-	
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
@@ -98,7 +99,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	if err := conn.WriteJSON(map[string]interface{}{
 		"type": "CONNECTION_SUCCESS",
 		"data": map[string]interface{}{
-			"message": "Connected successfully",
+			"message":       "Connected successfully",
 			"activeClients": len(clients),
 		},
 	}); err != nil {
@@ -113,7 +114,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 			delete(clients, client.ID)
 			// Remove the session when client disconnects
 			RemovePlayerSession(client.ID)
-			
+
 			// Only broadcast if there was an ID (player was actually in game)
 			var clientList []Client
 			for _, c := range clients {
@@ -167,7 +168,7 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 		HandleBomb(msg.Msg)
 	case "PLAYER_JOIN":
 		log.Printf("Player joined: %s", msg.MsgType)
-		HandelJoin(msg.Msg, &clients, conn, &WaitedClient)  
+		HandelJoin(msg.Msg, &clients, conn, &WaitedClient)
 	case "GAME_STARTED":
 		log.Printf("Game started: %s", msg.MsgType)
 		GameStart()
@@ -222,7 +223,7 @@ func HandleChat(msg json.RawMessage) {
 func GetChatHistory() []ChatMessage {
 	chatHistory.mu.RLock()
 	defer chatHistory.mu.RUnlock()
-	
+
 	// Create a copy of the messages
 	messages := make([]ChatMessage, len(chatHistory.Messages))
 	copy(messages, chatHistory.Messages)
@@ -247,6 +248,9 @@ func HandleBomb(msg json.RawMessage) {
 
 	// Add bomb to active bombs
 	bombMu.Lock()
+	bomb.Timer = 3000 // 3 seconds
+	bomb.PlacedAt = time.Now().UnixNano() / int64(time.Millisecond)
+	bomb.Exploded = false
 	activeBombs = append(activeBombs, bomb)
 	bombMu.Unlock()
 
@@ -255,20 +259,19 @@ func HandleBomb(msg json.RawMessage) {
 
 	// Start bomb timer
 	go func() {
-		time.Sleep(time.Duration(bomb.Timer) * time.Millisecond)
+		time.Sleep(3 * time.Second)
 
-		// Handle explosion
+		// Remove bomb from active bombs
 		bombMu.Lock()
-		// Find and remove the bomb
 		for i, b := range activeBombs {
-			if b.X == bomb.X && b.Y == bomb.Y && b.Owner == bomb.Owner {
+			if b.X == bomb.X && b.Y == bomb.Y {
 				activeBombs = append(activeBombs[:i], activeBombs[i+1:]...)
 				break
 			}
 		}
 		bombMu.Unlock()
 
-		// Update map for explosion
+		// Calculate explosion area and destroyed blocks
 		mapMu.Lock()
 		// Check each direction for explosion spread
 		directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
@@ -276,22 +279,19 @@ func HandleBomb(msg json.RawMessage) {
 
 		for _, dir := range directions {
 			for i := 0; i <= bomb.Radius; i++ {
-				newX := bomb.X + (dir[0] * i * 50)
-				newY := bomb.Y + (dir[1] * i * 50)
-
-				// Convert to grid coordinates
-				gridX := newX / 50
-				gridY := newY / 50
+				newX := bomb.X/50 + (dir[0] * i)
+				newY := bomb.Y/50 + (dir[1] * i)
 
 				// Check bounds
-				if gridY >= 0 && gridY < len(currentMap) && gridX >= 0 && gridX < len(currentMap[0]) {
+				if newY >= 0 && newY < len(currentMap) && newX >= 0 && newX < len(currentMap[0]) {
 					// If destructible wall
-					if currentMap[gridY][gridX] == 2 {
-						currentMap[gridY][gridX] = 3 // Mark as destroyed
-						destroyedTiles = append(destroyedTiles, struct{ X, Y int }{X: gridX, Y: gridY})
+					if currentMap[newY][newX] == 2 {
+						currentMap[newY][newX] = 0 // Mark as destroyed
+						destroyedTiles = append(destroyedTiles, struct{ X, Y int }{X: newX, Y: newY})
+						break // Stop explosion in this direction after hitting destructible wall
 					}
 					// If indestructible wall, stop explosion in this direction
-					if currentMap[gridY][gridX] == 1 {
+					if currentMap[newY][newX] == 1 {
 						break
 					}
 				}
@@ -299,25 +299,19 @@ func HandleBomb(msg json.RawMessage) {
 		}
 		mapMu.Unlock()
 
-		// Broadcast explosion details
-		explosion := struct {
-			BombX, BombY int
-			Radius       int
-			Destroyed    []struct{ X, Y int }
-		}{
-			BombX:   bomb.X,
-			BombY:   bomb.Y,
-			Radius:  bomb.Radius,
-			Destroyed: destroyedTiles,
+		// Broadcast explosion
+		explosionData := map[string]interface{}{
+			"BombX":     bomb.X,
+			"BombY":     bomb.Y,
+			"Radius":    bomb.Radius,
+			"Destroyed": destroyedTiles,
 		}
 
+		// Broadcast updated map and explosion
 		broadcastMessage("MAP", currentMap)
-
-		// Broadcast the explosion event
-		broadcastMessage("BOMB_EXPLODE", explosion)
+		broadcastMessage("BOMB_EXPLODE", explosionData)
 	}()
 }
-
 
 func HandleAuth(msg json.RawMessage) *AuthResponse {
 	var player Player
@@ -345,11 +339,11 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
 			delete(clients, player.ID)
 		}
 		mu.Unlock()
-		
+
 		// Return existing session
 		return &AuthResponse{
 			SessionID: existingSession.ID,
-			PlayerID: player.ID,
+			PlayerID:  player.ID,
 		}
 	}
 
@@ -357,6 +351,6 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
 	session := CreateSession(player.ID)
 	return &AuthResponse{
 		SessionID: session.ID,
-		PlayerID: player.ID,
+		PlayerID:  player.ID,
 	}
 }
