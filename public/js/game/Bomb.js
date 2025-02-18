@@ -6,8 +6,8 @@ const EXPLOSION_DURATION = 1000; // 1 second
 const BOMB_RADIUS = 2; // How many tiles the explosion reaches
 
 export function placeBomb(x, y, playerId) {
-    const tileX = Math.floor(x / 50) * 50;
-    const tileY = Math.floor(y / 50) * 50;
+    const tileX = x;
+    const tileY = y;
     
     // Send bomb placement message to server
     ws.sendMessage("BOMB_PLACE", {

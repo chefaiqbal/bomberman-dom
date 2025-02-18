@@ -4,6 +4,7 @@ import { NicknameScreen } from './components/NicknameScreen.js';
 import { WebSocketService } from './utils/websocket.js';
 import { GameBoard } from './components/GameBoard.js';
 import { generateMap } from './game/Map.js';
+import { PreGameLobby } from './components/PreGameLobby.js';
 
 const initialState = {
     playerId: Math.random().toString(36).substring(7),
@@ -16,7 +17,8 @@ const initialState = {
     wsConnected: false,
     map: null,
     mapGen: false,
-    reconnecting: false
+    reconnecting: false,
+    lobbyPhase: 'WAITING',
 };
 
 export const store = createStore(initialState);
@@ -37,7 +39,12 @@ const router = createRouter({
             router.navigate('/');
             return;
         }
-        render(Lobby({ store, router, ws }), appElement);
+        
+        if (state.lobbyPhase === 'PREGAME') {
+            render(PreGameLobby({ store, router, ws }), appElement);
+        } else {
+            render(Lobby({ store, router, ws }), appElement);
+        }
     },
     '/game': () => {
         const state = store.getState();

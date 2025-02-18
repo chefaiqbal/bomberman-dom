@@ -128,6 +128,9 @@ export class WebSocketService {
                 case 'BOMB_EXPLODE':
                     this.handleBombExplode(data.data);
                     break;
+                case 'LOBBY_PHASE_CHANGE':
+                    this.handleLobbyPhaseChange(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -215,21 +218,18 @@ export class WebSocketService {
         console.log("Timer update received:", data);
         const state = this.store.getState();
         
-        // Check if timer has completed
-        if (data.timeLeft === 0 && !data.isActive) {
-            this.store.setState({
-                ...state,
-                gameStartTimer: 0,
-                timerActive: false
-            });
-            return;
-        }
-
+        // Update timer state
         this.store.setState({
             ...state,
             gameStartTimer: data.timeLeft,
-            timerActive: data.isActive
+            timerActive: data.isActive,
+            lobbyPhase: data.phase
         });
+
+        // Force re-render of lobby when phase changes
+        if (data.phase !== state.lobbyPhase) {
+            this.router.navigate('/lobby');
+        }
     }
     
     handleGameState(data) {
@@ -345,5 +345,16 @@ export class WebSocketService {
         setTimeout(() => {
             document.querySelectorAll('.explosion').forEach(el => el.remove());
         }, 1000);
+    }
+
+    handleLobbyPhaseChange(data) {
+        const state = this.store.getState();
+        this.store.setState({
+            ...state,
+            lobbyPhase: data.phase
+        });
+        
+        // Re-render lobby with new phase
+        this.router.navigate('/lobby');
     }
 }
