@@ -99,3 +99,9 @@ var (
 	activeBombs = make([]Bomb, 0)
 	bombMu      sync.RWMutex
 )
+
+type PowerUp struct {
+    X    int    `json:"x"`
+    Y    int    `json:"y"`
+    Type string `json:"type"` // "bomb", "flame", or "speed"
+}

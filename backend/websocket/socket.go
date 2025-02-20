@@ -177,6 +177,8 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 		GameDone()
 	case "MAP":
 		Mapping(msg.Msg)
+	case "POWER_UP":
+		HandlePowerUp(msg.Msg)
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
 	}
@@ -353,4 +355,15 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
 		SessionID: session.ID,
 		PlayerID:  player.ID,
 	}
+}
+
+func HandlePowerUp(msg json.RawMessage) {
+	var powerUp PowerUp
+	if err := json.Unmarshal(msg, &powerUp); err != nil {
+		log.Printf("Failed to unmarshal power up: %v", err)
+		return
+	}
+	log.Printf("Power up received: %+v", powerUp)
+	broadcastMessage("POWER_UP", powerUp)
+
 }

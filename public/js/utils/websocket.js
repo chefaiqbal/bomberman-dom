@@ -1,3 +1,6 @@
+import { createElement, render, createStore } from "../core/index.js";
+
+
 export class WebSocketService {
     constructor(store, router) {
         this.store = store;
@@ -131,6 +134,9 @@ export class WebSocketService {
                 case 'LOBBY_PHASE_CHANGE':
                     this.handleLobbyPhaseChange(data.data);
                     break;
+                case 'POWER_UP':
+                    this.handlePowerUp(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -166,6 +172,7 @@ export class WebSocketService {
         
     handelMap(map) {
         console.log("Updating map:", map);
+        spawnedPowerUps.clear(); 
         this.store.setState({
             ...this.store.getState(),
             map: map
@@ -332,6 +339,8 @@ export class WebSocketService {
             const tileElement = mapElement.children[Y * 15 + X];
             if (tileElement) {
                 tileElement.style.background = 'green';
+                console.log(`Tile at (${X}, ${Y}) destroyed.`);
+                spawnPowerUp(X, Y, this);
             }
         });
 
@@ -356,5 +365,64 @@ export class WebSocketService {
         
         // Re-render lobby with new phase
         this.router.navigate('/lobby');
+    }
+
+
+    powerUps = {
+        bomb: '/static/img/morebomb.png',
+        flame: '/static/img/flamePower.png',
+        speed: '/static/img/speed.png'
+    };
+    
+    
+    handlePowerUp(powerUpData) {
+        const { x, y, type } = powerUpData;
+        console.log(`Power-up received at (${x}, ${y}): ${type}`);
+    
+        const powerUpElement = createElement("div", {
+            class: `power-up ${type}`,
+            style: `left: ${(x * 50) + 20}px; 
+                    top: ${(y * 50) + 20}px; 
+                    background-image: url(${this.powerUps[type]}); 
+                    width: 50px; height: 50px; 
+                    position: absolute; 
+                    background-size: contain;`
+        });
+    
+        const mapElement = document.querySelector(".map");
+        if (!mapElement) {
+            console.error("Map element not found!");
+            return;
+        }
+    
+        render(powerUpElement, mapElement);
+    }
+
+
+}
+
+
+
+
+const spawnedPowerUps = new Set(); 
+
+function spawnPowerUp(x, y, webSocketService) {
+    const key = `${x},${y}`;  
+    if (spawnedPowerUps.has(key)) {
+        console.warn(`Power-up already exists at (${x}, ${y}), skipping.`);
+        return;
+    }
+
+    if (Math.random() > 0.9) { 
+        const type = Object.keys(webSocketService.powerUps)[Math.floor(Math.random() * Object.keys(webSocketService.powerUps).length)];
+        console.log(`Decided power-up: ${type} at (${x}, ${y})`);
+
+        spawnedPowerUps.add(key);  
+
+        if (webSocketService) {
+            webSocketService.sendMessage('POWER_UP', { X: x, Y: y, Type: type });
+        } else {
+            console.error("WebSocket service is undefined.");
+        }
     }
 }
