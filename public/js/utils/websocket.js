@@ -1,5 +1,5 @@
 import { createElement, render, createStore } from "../core/index.js";
-
+import { createExplosion } from "../game/Bomb.js";  // Add this import
 
 export class WebSocketService {
     constructor(store, router) {
@@ -318,42 +318,61 @@ export class WebSocketService {
     }
 
     handleBombExplode(explosionData) {
-        const { BombX, BombY, Radius, Destroyed } = explosionData;
-        
-        // Remove the bomb element
-        const bombs = document.querySelectorAll('.bomb');
-        bombs.forEach(bomb => {
-            const bombX = parseInt(bomb.style.left) - 5;
-            const bombY = parseInt(bomb.style.top) - 5;
-            if (bombX === BombX && bombY === BombY) {
-                bomb.remove();
+        try {
+            console.log('Handling bomb explosion:', explosionData);
+            const { BombX, BombY, Radius, Destroyed } = explosionData;
+            
+            // Remove existing bomb element
+            const bombs = document.querySelectorAll('.bomb');
+            bombs.forEach(bomb => {
+                const bombX = parseInt(bomb.style.left) - 5;
+                const bombY = parseInt(bomb.style.top) - 5;
+                if (bombX === BombX && bombY === BombY) {
+                    bomb.remove();
+                }
+            });
+
+            // Get map element
+            const mapElement = document.querySelector(".map");
+            if (!mapElement) {
+                console.error('Map element not found');
+                return;
             }
-        });
 
-        // Create explosion animation
-        const mapElement = document.querySelector(".map");
-        if (!mapElement) return;
+            // Handle destroyed tiles
+            Destroyed.forEach(({X, Y}) => {
+                const tileElement = mapElement.children[Y * 15 + X];
+                if (tileElement) {
+                    tileElement.style.background = 'green';
+                    console.log(`Tile at (${X}, ${Y}) destroyed.`);
+                    spawnPowerUp(X, Y, this);
+                }
+            });
 
-        // Update destroyed tiles
-        Destroyed.forEach(({X, Y}) => {
-            const tileElement = mapElement.children[Y * 15 + X];
-            if (tileElement) {
-                tileElement.style.background = 'green';
-                console.log(`Tile at (${X}, ${Y}) destroyed.`);
-                spawnPowerUp(X, Y, this);
-            }
-        });
+            // Create and append explosion elements
+            const explosions = createExplosion(BombX, BombY, Radius);
+            explosions.forEach(explosion => {
+                if (explosion instanceof HTMLElement) {
+                    mapElement.appendChild(explosion);
+                    
+                    // Clean up after animation
+                    setTimeout(() => {
+                        const intervalId = parseInt(explosion.dataset.intervalId);
+                        if (!isNaN(intervalId)) {
+                            clearInterval(intervalId);
+                        }
+                        if (explosion.parentNode) {
+                            explosion.parentNode.removeChild(explosion);
+                        }
+                    }, EXPLOSION_DURATION);
+                } else {
+                    console.error('Invalid explosion element:', explosion);
+                }
+            });
 
-        // Create explosion effects
-        const explosions = createExplosion(BombX, BombY, Radius);
-        explosions.forEach(explosion => {
-            mapElement.appendChild(explosion);
-        });
-
-        // Remove explosion effects after animation
-        setTimeout(() => {
-            document.querySelectorAll('.explosion').forEach(el => el.remove());
-        }, 1000);
+        } catch (error) {
+            console.error('Error in handleBombExplode:', error);
+        }
     }
 
     handleLobbyPhaseChange(data) {
