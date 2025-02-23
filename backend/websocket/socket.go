@@ -358,12 +358,16 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
 }
 
 func HandlePowerUp(msg json.RawMessage) {
-	var powerUp PowerUp
-	if err := json.Unmarshal(msg, &powerUp); err != nil {
-		log.Printf("Failed to unmarshal power up: %v", err)
-		return
-	}
-	log.Printf("Power up received: %+v", powerUp)
-	broadcastMessage("POWER_UP", powerUp)
+    var powerUp PowerUp
+    if err := json.Unmarshal(msg, &powerUp); err != nil {
+        log.Printf("Failed to unmarshal power up: %v", err)
+        return
+    }
+    log.Printf("Power up received: %+v", powerUp)
+    broadcastMessage("POWER_UP", powerUp)
 
+    time.AfterFunc(4*time.Second, func() {
+        log.Printf("Power up at (%d, %d) removed.", powerUp.X, powerUp.Y)
+        broadcastMessage("REMOVE_POWER_UP", powerUp)
+    })
 }

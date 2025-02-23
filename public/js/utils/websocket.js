@@ -137,6 +137,17 @@ export class WebSocketService {
                 case 'POWER_UP':
                     this.handlePowerUp(data.data);
                     break;
+                case 'REMOVE_POWER_UP':
+                    const { x, y } = data.data;
+                    const powerUpElement = document.querySelector(`.power-up[data-x="${x}"][data-y="${y}"]`);
+                    if (powerUpElement) {
+                        powerUpElement.remove();
+                        spawnedPowerUps.delete(`${x},${y}`);
+                        console.log(`Power-up at (${x}, ${y}) removed.`);
+                    } else {
+                        console.error(`Power-up element at (${x}, ${y}) not found.`);
+                    }
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -399,7 +410,8 @@ export class WebSocketService {
         console.log(`Power-up received at (${x}, ${y}): ${type}`);
     
         const powerUpElement = createElement("div", {
-            class: `power-up ${type}`,
+            class: `power-up ${type}`,  "data-x": x,
+            "data-y": y,
             style: `left: ${(x * 50) + 20}px; 
                     top: ${(y * 50) + 20}px; 
                     background-image: url(${this.powerUps[type]}); 
