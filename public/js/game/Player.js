@@ -22,12 +22,15 @@ const startPositions = [
 
 const playerStores = {}; 
 
+const BOMB_COOLDOWN = 3000; // 3 seconds cooldown
+
 function createPlayerStore(playerID, x, y) {
     playerStores[playerID] = createStore({
         x, y,  
         targetX: x, targetY: y,  
         direction: 0, frameIndex: 0,
-        moving: false, movingDirection: null
+        moving: false, movingDirection: null,
+        canPlaceBomb: true // Add bomb placement flag
     });
 }
 
@@ -140,10 +143,30 @@ document.onkeydown = function (e) {
 
     // Add bomb placement on spacebar
     if (e.key === " ") {
-        const bombElement = placeBomb(state.x, state.y, playerID);
-        const mapElement = document.querySelector(".map");
-        if (mapElement) {
-            render(bombElement, mapElement);
+        const state = store.getState();
+        const playerID = state.playerName;
+        const playerState = playerStores[playerID].getState();
+
+        if (playerState.canPlaceBomb) {
+            const bombElement = placeBomb(playerState.x, playerState.y, playerID);
+            const mapElement = document.querySelector(".map");
+            if (mapElement) {
+                render(bombElement, mapElement);
+                
+                // Set cooldown
+                playerStores[playerID].setState({
+                    ...playerState,
+                    canPlaceBomb: false
+                });
+
+                // Reset after explosion
+                setTimeout(() => {
+                    playerStores[playerID].setState({
+                        ...playerStores[playerID].getState(),
+                        canPlaceBomb: true
+                    });
+                }, BOMB_COOLDOWN);
+            }
         }
     }
 };
