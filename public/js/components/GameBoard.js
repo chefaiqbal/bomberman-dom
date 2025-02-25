@@ -113,6 +113,7 @@ export function GameBoard({ store, router, ws }) {
                     )]
             ),
             createPlayerList(players),
+            KeyToPlay(),
             createTimer(),
             createElement('img', {
                 src: '/static/img/chatlogo.png',
@@ -133,7 +134,27 @@ export function GameBoard({ store, router, ws }) {
 }
 
 
+function KeyToPlay() {
+    return createElement(
+        'div',
+        {
+            class: 'key-to-play',
+            style: 'position: absolute; left: 20px; top: 200px; color: white; font-size: 16px;'
+        },
+        [
+            createElement('h2', { style: 'margin-bottom: 10px;' }, 'Key to Play'),
+            createElement('div', { style: 'margin-bottom: 10px;' }, [
+                createElement('strong', {}, 'Move: '),
+                'Arrow Keys (↑, ↓, ←, →)'
+            ]),
+            createElement('div', { style: 'margin-bottom: 10px;' }, [
+                createElement('strong', {}, 'Place Bomb: '),
+                'Spacebar'
+            ]),
 
+       ]
+    );
+}
 
 // const gameBoard = GameBoard();
 // const container = document.getElementById('app');

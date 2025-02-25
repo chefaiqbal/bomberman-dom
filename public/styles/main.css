@@ -14,3 +14,25 @@
     background: rgba(0, 0, 0, 0.5);
     border-radius: 4px;
 }
+
+.key-to-play {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    width: 250px;
+}
+
+.key-to-play h2 {
+    margin: 0 0 10px 0;
+    font-size: 20px;
+}
+
+.key-to-play h3 {
+    margin: 15px 0 10px 0;
+    font-size: 18px;
+}
+
+.key-to-play div {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}

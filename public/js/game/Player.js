@@ -43,7 +43,10 @@ function createPlayerStore(playerID, x, y) {
         targetX: x, targetY: y,  
         direction: 0, frameIndex: 0,
         moving: false, movingDirection: null,
-        canPlaceBomb: true // Add bomb placement flag
+        canPlaceBomb: true, // Add bomb placement flag
+        bombPowerUp: 1, 
+        flamePowerUp: 1,
+        speedPowerUp: 1,
     });
 }
 
@@ -313,7 +316,35 @@ function collectPowerUp(playerID, powerUpElement) {
     //here
     playerStores[playerID].setState({ ...playerState });
 
-    powerUpElement.remove();
-    spawnedPowerUps.delete(`${powerUpElement.dataset.x},${powerUpElement.dataset.y}`);
-    console.log(`Player ${playerID} collected ${powerUpType} power-up.`);
+
+    switch (powerUpType) {
+        case "bomb":
+            console.log('collectPowerUp called with bomb power-up');
+            playerStores[playerID].setState({ 
+                ...playerState, 
+                bombPowerUp: playerState.bombPowerUp + 1 
+            });
+            break;
+        case "flame":
+            console.log('collectPowerUp called with flame power-up');
+            playerStores[playerID].setState({ 
+                ...playerState, 
+                flamePowerUp: playerState.flamePowerUp + 1 
+            });
+            break;
+        case "speed":
+            console.log('collectPowerUp called with speed power-up');
+            playerStores[playerID].setState({ 
+                ...playerState, 
+                speedPowerUp: playerState.speedPowerUp + 1 
+            });
+            break;
+            default:
+                console.warn(`Unknown power-up type: ${powerUpType}`);
+                return;
+        }
+        powerUpElement.remove();
+        // spawnedPowerUps.delete(`${powerUpElement.dataset.x},${powerUpElement.dataset.y}`);
+        
+        console.log(`Player ${playerID} collected ${powerUpType} power-up.`);
 }
