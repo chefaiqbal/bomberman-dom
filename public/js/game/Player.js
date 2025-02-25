@@ -1,6 +1,6 @@
 import { createElement, render, createStore } from "../core/index.js";
 import { ws, store } from "../app.js"; 
-import { placeBomb, createExplosion } from "./Bomb.js";
+import { createExplosion } from "./Bomb.js";
 
 const tileSize = 50;
 const frameWidth = 50;
@@ -37,16 +37,41 @@ let keyStates = {
 // Track if we're in the initial keypress
 let isInitialKeypress = true;
 
+// Add these constants at the top of the file
+const POWER_UP_EFFECTS = {
+    'bomb': {
+        maxBombs: 1,
+        apply: (playerState) => ({
+            ...playerState,
+            maxBombs: playerState.maxBombs + 1
+        })
+    },
+    'flame': {
+        radius: 1,
+        apply: (playerState) => ({
+            ...playerState,
+            bombRadius: (playerState.bombRadius || 2) + 1
+        })
+    },
+    'speed': {
+        speedBoost: 2,
+        apply: (playerState) => ({
+            ...playerState,
+            speed: (playerState.speed || speed) + 2
+        })
+    }
+};
+
 function createPlayerStore(playerID, x, y) {
     playerStores[playerID] = createStore({
-        x, y,  
-        targetX: x, targetY: y,  
+        x, y,
+        targetX: x, targetY: y,
         direction: 0, frameIndex: 0,
         moving: false, movingDirection: null,
-        canPlaceBomb: true, // Add bomb placement flag
-        bombPowerUp: 1, 
-        flamePowerUp: 1,
-        speedPowerUp: 1,
+        canPlaceBomb: true,
+        maxBombs: 1,
+        bombRadius: 2,
+        speed: speed
     });
 }
 
@@ -143,21 +168,23 @@ document.onkeydown = function(e) {
     if (!isInitialKeypress && currentTime - lastMoveTime < MOVEMENT_COOLDOWN) return;
 
     let newX = state.x, newY = state.y, frameIndex = state.frameIndex;
+    const player = states.players.find(p => p.ID === playerID);
+    const speedMultiplier = (player?.speed || 5) / 5; // Calculate speed boost
 
     if (keyStates["ArrowLeft"]) {
-        newX -= tileSize;
+        newX -= tileSize * speedMultiplier;
         ws.sendMessage("MOVE", { direction: "ArrowLeft", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (keyStates["ArrowRight"]) {
-        newX += tileSize;
+        newX += tileSize * speedMultiplier;
         ws.sendMessage("MOVE", { direction: "ArrowRight", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (keyStates["ArrowUp"]) {
-        newY -= tileSize;
+        newY -= tileSize * speedMultiplier;
         ws.sendMessage("MOVE", { direction: "ArrowUp", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (keyStates["ArrowDown"]) {
-        newY += tileSize;
+        newY += tileSize * speedMultiplier;
         ws.sendMessage("MOVE", { direction: "ArrowDown", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
 
@@ -176,35 +203,64 @@ document.onkeydown = function(e) {
 
     // Add bomb placement on spacebar
     if (e.key === " ") {
-        const state = store.getState();
-        const playerID = state.playerName;
         const playerState = playerStores[playerID].getState();
-
-        if (playerState.canPlaceBomb) {
+        const player = states.players.find(p => p.ID === playerID);
+        
+        // Get current active bombs for this player
+        const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
+        const maxBombs = player?.maxBombs || 1;
+        
+        if (activeBombs.length < maxBombs) {
             const bombElement = placeBomb(playerState.x, playerState.y, playerID);
-            const mapElement = document.querySelector(".map");
-            if (mapElement) {
-                render(bombElement, mapElement);
-                
-                // Set cooldown
-                playerStores[playerID].setState({
-                    ...playerState,
-                    canPlaceBomb: false
-                });
-
-                // Reset after explosion
-                setTimeout(() => {
-                    playerStores[playerID].setState({
-                        ...playerStores[playerID].getState(),
-                        canPlaceBomb: true
-                    });
-                }, BOMB_COOLDOWN);
+            if (bombElement) {
+                const mapElement = document.querySelector(".map");
+                if (mapElement) {
+                    render(bombElement, mapElement);
+                }
             }
         }
     }
 };
 
-// Update keyup handler to reset initial keypress state
+// Modify the placeBomb function
+function placeBomb(x, y, playerId) {
+    const state = store.getState();
+    const player = state.players.find(p => p.ID === playerId);
+    
+    // Send bomb placement message
+    ws.sendMessage("BOMB_PLACE", {
+        x: x,
+        y: y,
+        owner: playerId,
+        radius: player?.bombRadius || 2
+    });
+
+    const bombElement = createElement("div", {
+        class: "bomb",
+        "data-owner": playerId,
+        style: `
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            left: ${x + 5}px;
+            top: ${y + 5}px;
+            background-image: url('/static/img/Bomb.png');
+            background-size: contain;
+            z-index: 1;
+        `
+    });
+
+    // Remove bomb element after explosion
+    setTimeout(() => {
+        if (bombElement.parentNode) {
+            bombElement.parentNode.removeChild(bombElement);
+        }
+    }, BOMB_COOLDOWN);
+
+    return bombElement;
+}
+
+// Update the keyup handler to reset initial keypress state
 document.onkeyup = function(e) {
     if (e.key in keyStates) {
         keyStates[e.key] = false;
@@ -310,41 +366,45 @@ console.log('powerUpX:', powerUpX, 'powerUpY:', powerUpY);
 
 
 function collectPowerUp(playerID, powerUpElement) {
-    const powerUpType = powerUpElement.classList[1]; 
-    const playerState = playerStores[playerID].getState();
-    
-    //here
-    playerStores[playerID].setState({ ...playerState });
+    const powerUpType = powerUpElement.classList[1];
+    const x = parseInt(powerUpElement.style.left);
+    const y = parseInt(powerUpElement.style.top);
 
+    // Send collection message to server
+    ws.sendMessage("POWER_UP_COLLECTED", {
+        playerID,
+        type: powerUpType,
+        x: x,
+        y: y
+    });
 
-    switch (powerUpType) {
-        case "bomb":
-            console.log('collectPowerUp called with bomb power-up');
-            playerStores[playerID].setState({ 
-                ...playerState, 
-                bombPowerUp: playerState.bombPowerUp + 1 
-            });
-            break;
-        case "flame":
-            console.log('collectPowerUp called with flame power-up');
-            playerStores[playerID].setState({ 
-                ...playerState, 
-                flamePowerUp: playerState.flamePowerUp + 1 
-            });
-            break;
-        case "speed":
-            console.log('collectPowerUp called with speed power-up');
-            playerStores[playerID].setState({ 
-                ...playerState, 
-                speedPowerUp: playerState.speedPowerUp + 1 
-            });
-            break;
-            default:
-                console.warn(`Unknown power-up type: ${powerUpType}`);
-                return;
-        }
-        powerUpElement.remove();
-        // spawnedPowerUps.delete(`${powerUpElement.dataset.x},${powerUpElement.dataset.y}`);
-        
-        console.log(`Player ${playerID} collected ${powerUpType} power-up.`);
+    // Remove the power-up element
+    powerUpElement.remove();
+
+    // Visual feedback
+    showPowerUpEffect(powerUpType, playerID);
 }
+
+// Add visual feedback function
+function showPowerUpEffect(type, playerID) {
+    const player = document.querySelector(`.player[data-name="${playerID}"]`);
+    if (player) {
+        const effect = document.createElement('div');
+        effect.className = 'power-up-effect';
+        effect.textContent = type === 'bomb' ? '💣' : type === 'flame' ? '🔥' : '⚡';
+        effect.style.cssText = `
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            animation: float-up 1s ease-out forwards;
+        `;
+        player.appendChild(effect);
+        
+        setTimeout(() => effect.remove(), 1000);
+    }
+}
+
+// Make sure to export the placeBomb function
+export { placeBomb };

@@ -148,6 +148,9 @@ export class WebSocketService {
                         console.error(`Power-up element at (${x}, ${y}) not found.`);
                     }
                     break;
+                case 'POWER_UP_COLLECTED':
+                    this.handlePowerUpCollected(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -429,6 +432,45 @@ export class WebSocketService {
         render(powerUpElement, mapElement);
     }
 
+    handlePowerUpCollected(powerUpData) {
+        const currentState = this.store.getState();
+        const updatedPlayers = currentState.players.map(player => {
+            if (player.ID === powerUpData.playerID) {
+                const currentMaxBombs = player.maxBombs || 1;
+                const currentBombRadius = player.bombRadius || 2;
+                const currentSpeed = player.speed || 5;
+                
+                let newState = {
+                    ...player,
+                    maxBombs: currentMaxBombs,
+                    bombRadius: currentBombRadius,
+                    speed: currentSpeed
+                };
+
+                // Apply power-up effects
+                switch(powerUpData.type) {
+                    case 'bomb':
+                        newState.maxBombs += 1;
+                        break;
+                    case 'flame':
+                        newState.bombRadius += 1;
+                        break;
+                    case 'speed':
+                        newState.speed += 1;
+                        break;
+                }
+
+                console.log(`Updated player stats:`, newState);
+                return newState;
+            }
+            return player;
+        });
+
+        this.store.setState({
+            ...currentState,
+            players: updatedPlayers
+        });
+    }
 
 }
 
