@@ -92,6 +92,8 @@ function gameLoop() {
             else y = targetY;
             
             playerStores[playerID].setState({ ...state, x, y });
+
+
             if (x === targetX && y === targetY) {
                 playerStores[playerID].setState({ ...playerStores[playerID].getState(), moving: false });
             }
@@ -132,7 +134,7 @@ document.onkeydown = function (e) {
         ws.sendMessage("MOVE", { direction: "ArrowDown" , playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
 
-    if (!detectCollision(newX, newY)) {
+    if (!detectCollision(newX, newY,playerID)) {
         playerStores[playerID].setState({
             ...state,
             targetX: newX, targetY: newY,
@@ -172,14 +174,19 @@ document.onkeydown = function (e) {
 };
 
 // Collision detection function
-function detectCollision(x, y) {
+function detectCollision(x, y,playerID) {
     const state = store.getState();
     const map = state.map;
     if (!map) return true; // Block movement if map isn't loaded
 
     const row = Math.floor((x - 20) / tileSize);
     const col = Math.floor((y - 20) / tileSize);
-    
+    const powerUpElement = detectPowerUpCollision(x, y);
+    if (powerUpElement) {
+        collectPowerUp(playerID, powerUpElement);
+        console.log(`Player ${playerID} collected power-up. ${powerUpElement}`);
+        return false;
+    }
     if (col < 0 || col >= map.length || row < 0 || row >= map[0].length) {
         return true;
     }
@@ -200,7 +207,7 @@ function updatePlayerPose() {
                     const playerState = playerStores[player.ID].getState();
 
                     if (player.x !== playerState.x || player.y !== playerState.y) {
-                        if (!detectCollision(player.x, player.y)) {
+                        if (!detectCollision(player.x, player.y,player.ID)) {
                             playerStores[player.ID].setState({
                                 ...playerState,
                                 x: player.x,        
@@ -244,3 +251,33 @@ gameLoop();
 setTimeout(() => {
     updatePlayerPose(); 
 }, 50);
+
+
+function detectPowerUpCollision(playerX, playerY) {
+    console.log('detectPowerUpCollision called');
+    console.log('playerX:', playerX, 'playerY:', playerY);
+    const powerUpElements = document.querySelectorAll('.power-up');
+    for (const powerUpElement of powerUpElements) {
+        const powerUpX = parseInt(powerUpElement.style.left);
+        const powerUpY = parseInt(powerUpElement.style.top);
+console.log('powerUpX:', powerUpX, 'powerUpY:', powerUpY);
+        // Check if player is on the same tile as the power-up
+        if (Math.abs(playerX - powerUpX) < tileSize && Math.abs(playerY - powerUpY) < tileSize) {
+            return powerUpElement;
+        }
+    }
+    return null;
+}
+
+
+function collectPowerUp(playerID, powerUpElement) {
+    const powerUpType = powerUpElement.classList[1]; 
+    const playerState = playerStores[playerID].getState();
+    
+    //here
+    playerStores[playerID].setState({ ...playerState });
+
+    powerUpElement.remove();
+    spawnedPowerUps.delete(`${powerUpElement.dataset.x},${powerUpElement.dataset.y}`);
+    console.log(`Player ${playerID} collected ${powerUpType} power-up.`);
+}
