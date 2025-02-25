@@ -6,6 +6,7 @@ const tileSize = 50;
 const frameWidth = 50;
 const frameHeight = 50;
 const speed = 5;
+const MOVEMENT_COOLDOWN = 200; // Add cooldown between movements (milliseconds)
 const directions = {
     "ArrowDown": 0,
     "ArrowUp": 1,
@@ -23,6 +24,18 @@ const startPositions = [
 const playerStores = {}; 
 
 const BOMB_COOLDOWN = 3000; // 3 seconds cooldown
+
+// Add movement cooldown tracking
+let lastMoveTime = 0;
+let keyStates = {
+    "ArrowLeft": false,
+    "ArrowRight": false,
+    "ArrowUp": false,
+    "ArrowDown": false
+};
+
+// Track if we're in the initial keypress
+let isInitialKeypress = true;
 
 function createPlayerStore(playerID, x, y) {
     playerStores[playerID] = createStore({
@@ -103,44 +116,59 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-
-
-// Handle keyboard inputs for movement
-document.onkeydown = function (e) {
+// Handle key down
+document.onkeydown = function(e) {
     const states = store.getState();
-    const playerID = states.playerName; 
+    const playerID = states.playerName;
     if (!playerStores[playerID]) return;
+
+    // Update key state
+    if (e.key in keyStates) {
+        // If this key wasn't already pressed, it's an initial keypress
+        if (!keyStates[e.key]) {
+            isInitialKeypress = true;
+        }
+        keyStates[e.key] = true;
+        e.preventDefault();
+    }
 
     const state = playerStores[playerID].getState();
     if (state.moving) return;
-    console.log('Player State:       dcc', state);
-    let newX = state.x, newY = state.y, frameIndex = state.frameIndex;
-    console.log('frameIndex State:       dcc', frameIndex);
 
-    if (e.key === "ArrowLeft") {
+    const currentTime = Date.now();
+    // Allow movement if it's initial keypress or enough time has passed
+    if (!isInitialKeypress && currentTime - lastMoveTime < MOVEMENT_COOLDOWN) return;
+
+    let newX = state.x, newY = state.y, frameIndex = state.frameIndex;
+
+    if (keyStates["ArrowLeft"]) {
         newX -= tileSize;
         ws.sendMessage("MOVE", { direction: "ArrowLeft", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
-    if (e.key === "ArrowRight") {
+    if (keyStates["ArrowRight"]) {
         newX += tileSize;
         ws.sendMessage("MOVE", { direction: "ArrowRight", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
-    if (e.key === "ArrowUp") {
+    if (keyStates["ArrowUp"]) {
         newY -= tileSize;
         ws.sendMessage("MOVE", { direction: "ArrowUp", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
-    if (e.key === "ArrowDown") {
+    if (keyStates["ArrowDown"]) {
         newY += tileSize;
-        ws.sendMessage("MOVE", { direction: "ArrowDown" , playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
+        ws.sendMessage("MOVE", { direction: "ArrowDown", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
 
-    if (!detectCollision(newX, newY,playerID)) {
+    if (!detectCollision(newX, newY, playerID)) {
         playerStores[playerID].setState({
             ...state,
-            targetX: newX, targetY: newY,
-            moving: true, direction: directions[e.key],
-            frameIndex: (state.frameIndex + 1) % 3  
+            targetX: newX,
+            targetY: newY,
+            moving: true,
+            direction: directions[e.key],
+            frameIndex: (state.frameIndex + 1) % 3
         });
+        lastMoveTime = currentTime;
+        isInitialKeypress = false;  // Reset the initial keypress flag
     }
 
     // Add bomb placement on spacebar
@@ -170,6 +198,14 @@ document.onkeydown = function (e) {
                 }, BOMB_COOLDOWN);
             }
         }
+    }
+};
+
+// Update keyup handler to reset initial keypress state
+document.onkeyup = function(e) {
+    if (e.key in keyStates) {
+        keyStates[e.key] = false;
+        isInitialKeypress = true;  // Reset for next keypress
     }
 };
 

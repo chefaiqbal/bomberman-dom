@@ -16,7 +16,7 @@ type GameTimer struct {
 
 func NewGameTimer(broadcast func(string, interface{})) *GameTimer {
 	return &GameTimer{
-		timeLeft:  5, // 5 seconds for each phase
+		timeLeft:  2, // 5 seconds for each phase
 		isActive:  false,
 		phase:     "WAITING",
 		broadcast: broadcast,
@@ -30,7 +30,7 @@ func (t *GameTimer) Start() {
 		return
 	}
 	t.isActive = true
-	t.timeLeft = 6
+	t.timeLeft = 2
 	t.phase = "WAITING"
 	t.mu.Unlock()
 
@@ -54,7 +54,7 @@ func (t *GameTimer) Start() {
 				if phase == "WAITING" {
 					// Transition to pregame phase
 					t.mu.Lock()
-					t.timeLeft = 10
+					t.timeLeft = 2
 					t.phase = "PREGAME"
 					t.mu.Unlock()
 
