@@ -330,28 +330,40 @@ export class WebSocketService {
 
     handleBombExplode(explosionData) {
         try {
+            const EXPLOSION_DURATION = 1000;
+    
             console.log('Handling bomb explosion:', explosionData);
             const { BombX, BombY, Radius, Destroyed } = explosionData;
-            
+    
+            // Normalize bomb position
+            const normalizedBombX = Math.floor(BombX / 50);
+            const normalizedBombY = Math.floor(BombY / 50);
+    
+            console.log(`Normalized bomb position: (${normalizedBombX}, ${normalizedBombY})`);
+    
             // Remove existing bomb element
             const bombs = document.querySelectorAll('.bomb');
             bombs.forEach(bomb => {
-                const bombX = parseInt(bomb.style.left) - 5;
-                const bombY = parseInt(bomb.style.top) - 5;
-                if (bombX === BombX && bombY === BombY) {
+                const bombX = Math.floor(parseInt(bomb.style.left) / 50);
+                const bombY = Math.floor(parseInt(bomb.style.top) / 50);
+    
+                console.log(`Checking bomb at (${bombX}, ${bombY}) against explosion at (${normalizedBombX}, ${normalizedBombY})`);
+                
+                if (bombX === normalizedBombX && bombY === normalizedBombY) {
+                    console.log('Removing bomb element.');
                     bomb.remove();
                 }
             });
-
+    
             // Get map element
             const mapElement = document.querySelector(".map");
             if (!mapElement) {
                 console.error('Map element not found');
                 return;
             }
-
+    
             // Handle destroyed tiles
-            Destroyed.forEach(({X, Y}) => {
+            Destroyed.forEach(({ X, Y }) => {
                 const tileElement = mapElement.children[Y * 15 + X];
                 if (tileElement) {
                     tileElement.style.background = 'green';
@@ -359,14 +371,32 @@ export class WebSocketService {
                     spawnPowerUp(X, Y, this);
                 }
             });
-
-            // Create and append explosion elements
+    
+            const players = this.store.getState().players;
+    
+            players.forEach(player => {
+                const { x, y, ID } = player;
+    
+                const playerTileX = Math.floor(x / 50);
+                const playerTileY = Math.floor(y / 50);
+    
+                console.log(`Checking player ${ID} at (${playerTileX}, ${playerTileY})`);
+    
+                if (
+                    (playerTileX === normalizedBombX && Math.abs(playerTileY - normalizedBombY) <= Radius) ||
+                    (playerTileY === normalizedBombY && Math.abs(playerTileX - normalizedBombX) <= Radius) ||
+                    (Math.abs(playerTileX - normalizedBombX) + Math.abs(playerTileY - normalizedBombY) <= Radius) 
+                ) {
+                    console.log(`Player ${ID} hit by explosion!`);
+                    // this.PlayerHit(ID); // Call player hit handler
+                }
+            });
+    
             const explosions = createExplosion(BombX, BombY, Radius);
             explosions.forEach(explosion => {
                 if (explosion instanceof HTMLElement) {
                     mapElement.appendChild(explosion);
                     
-                    // Clean up after animation
                     setTimeout(() => {
                         const intervalId = parseInt(explosion.dataset.intervalId);
                         if (!isNaN(intervalId)) {
@@ -380,12 +410,16 @@ export class WebSocketService {
                     console.error('Invalid explosion element:', explosion);
                 }
             });
-
+    
         } catch (error) {
             console.error('Error in handleBombExplode:', error);
         }
     }
 
+    PlayerHit(ID) {
+
+    }
+    
     handleLobbyPhaseChange(data) {
         const state = this.store.getState();
         this.store.setState({
