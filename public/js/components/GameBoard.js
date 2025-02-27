@@ -51,25 +51,54 @@ function createTimer() {
         },
         '01:00'
     );
+}function createPlayerLives(ID, store) {
+    let previousLives = null; 
+
+    const updatePlayerLives = () => {
+        const state = store.getState();
+        const player = state.players.find(player => player.ID === ID);
+
+        if (player) {
+            const playerLives = player.lives;
+            console.log("Player Lives: ", playerLives);
+
+            if (previousLives !== playerLives) {
+                previousLives = playerLives; 
+
+                const playerLivesElement = createElement(
+                    'div',
+                    {
+                        class: 'player-lives',
+                        style: 'position: absolute; right: 60px; top: 60px; display: flex; gap: 10px;'
+                    },
+                    Array(playerLives).fill().map(() =>
+                        createElement('div', {
+                            class: 'heart-large',
+                            style: 'width: 40px; height: 40px; border: 1px solid red; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
+                        })
+                    )
+                );
+
+                const existingElement = document.querySelector('.player-lives');
+                if (existingElement) {
+                    existingElement.remove();
+                }
+
+                render(playerLivesElement, document.body);
+            }
+        }
+    };
+
+    updatePlayerLives();
+
+    store.subscribe(() => {
+        updatePlayerLives(); 
+    });
 }
 
-function createPlayerLives() {
-    return createElement(
-        'div',
-        {
-            class: 'player-lives',
-            style: 'position: absolute; right: 60px; top: 60px; display: flex; gap: 10px;'
-        },
-        Array(3).fill().map(() =>
-            createElement('div',
-                {
-                    class: 'heart-large',
-                    style: 'width: 40px; height: 40px; border: 1px solid red; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
-                } 
-            )
-        )
-    );
-}
+
+
+
 
 export function GameBoard({ store, router, ws }) {
     const state = store.getState();
@@ -89,7 +118,6 @@ export function GameBoard({ store, router, ws }) {
             chatContainer.style.display = chatVisible ? 'block' : 'none';
         }
     }
-
     return createElement(
         'div',
         {
@@ -128,7 +156,7 @@ export function GameBoard({ store, router, ws }) {
                 },
                 Chat({ store, ws })
             ),
-            createPlayerLives()
+            createPlayerLives(state.playerName, store)
         ]
     );
 }

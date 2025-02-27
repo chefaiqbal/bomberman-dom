@@ -137,6 +137,9 @@ export class WebSocketService {
                 case 'POWER_UP':
                     this.handlePowerUp(data.data);
                     break;
+                case 'TAKE_DMG':
+                    this.handleTakeDmg(data.data);
+                    break;
                 case 'REMOVE_POWER_UP':
                     const { x, y } = data.data;
                     const powerUpElement = document.querySelector(`.power-up[data-x="${x}"][data-y="${y}"]`);
@@ -167,10 +170,31 @@ export class WebSocketService {
         }
     }
 
+    handleTakeDmg(ID) {
+        console.log("iddds: ", ID)
+        const state = this.store.getState();
+        const players = state.players.map(player => {
+            if (player.ID === ID.ID) {
+                const updatedLives = Math.max(player.lives - 1, 0); // Prevent negative lives
+                console.log(`Player ${ID} took damage! Lives left: ${updatedLives}`);
+                return { ...player, lives: updatedLives };
+            }
+            return player;
+        });
+    
+        this.store.setState({
+            ...state,
+            players
+        });
+    
+        console.log("after hit: ", state);        
+    }
+            
+
     handelMove(moveData) {
         const { direction, playerName, x, y,  frameIndex} = moveData;
         console.log(`Player ${playerName} moved ${direction} to (${x}, ${y}) frameIndex: ${frameIndex}`);
-    
+    // const lives = 3
         const state = this.store.getState();
         const players = state.players.map(player => 
             player.ID === playerName ? { ...player, x, y, frameIndex,direction } : player
@@ -204,16 +228,21 @@ export class WebSocketService {
     handlePlayerUpdate(players) {
         console.log("Updating players list", players);
         const currentState = this.store.getState();
-        
+    
+        const updatedPlayers = players.map(player => ({
+            ...player,
+            lives: player.lives !== undefined ? player.lives : 3 
+        }));
+    
         this.store.setState({
             ...currentState,
-            players: players,
+            players: updatedPlayers,
             isAuthenticated: true,
             reconnecting: false
         });
-
+    
         // Navigate to lobby if not already there
-        if (!currentState.gameStarted && players && players.length > 0) {
+        if (!currentState.gameStarted && updatedPlayers && updatedPlayers.length > 0) {
             this.router.navigate('/lobby');
         }
     }
@@ -221,7 +250,7 @@ export class WebSocketService {
     handleGameStart(data) {
         console.log("Game start received");
         const currentState = this.store.getState();
-        
+
         this.store.setState({
             ...currentState,
             gameStartTimer: 0,
@@ -391,7 +420,7 @@ export class WebSocketService {
                     (Math.abs(playerTileX - normalizedBombX) + Math.abs(playerTileY - normalizedBombY) <= Radius) 
                 ) {
                     console.log(`Player ${ID} hit by explosion!`);
-                    // this.PlayerHit(ID); // Call player hit handler
+                    this.PlayerHit(ID);
                 }
             });
     
@@ -420,7 +449,7 @@ export class WebSocketService {
     }
 
     PlayerHit(ID) {
-
+        this.sendMessage("TAKE_DMG", {ID: ID})
     }
     
     handleLobbyPhaseChange(data) {
@@ -470,15 +499,17 @@ export class WebSocketService {
         const currentState = this.store.getState();
         const updatedPlayers = currentState.players.map(player => {
             if (player.ID === powerUpData.playerID) {
+
                 const currentMaxBombs = player.maxBombs || 1;
                 const currentBombRadius = player.bombRadius || 2;
                 const currentSpeed = player.speed || 5;
-                
+
                 let newState = {
                     ...player,
                     maxBombs: currentMaxBombs,
                     bombRadius: currentBombRadius,
                     speed: currentSpeed
+                   
                 };
 
                 // Apply power-up effects
