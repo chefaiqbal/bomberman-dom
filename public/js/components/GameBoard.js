@@ -2,45 +2,71 @@ import { createElement, render } from "../core/dom.js";
 import { renderMap } from "../game/Map.js";
 import { Chat } from './Chat.js';
 
-function createPlayerList(players) {
-    return createElement(
-        'div',
-        {
-            class: 'player-list',
-            style: 'position: absolute; left: 20px; top: 20px;'
-        },
-        players.map(player =>
-            createElement('div',
+function createPlayerList(players, store, ID) {
+    let previousState = store.getState();
+
+    const updatePlayerList = () => {
+        const state = store.getState();
+        if (state !== previousState) {
+            previousState = state;
+
+            const playerListElement = createElement(
+                'div',
                 {
-                    class: 'player-row',
-                    style: 'display: flex; align-items: center; margin-bottom: 15px;'
+                    class: 'player-list',
+                    style: 'position: absolute; left: 20px; top: 20px;'
                 },
-                [
-                    createElement('span',
+                players.map(player => {
+                    const playerState = state.players.find(p => p.ID === player.name);
+                    const lives = playerState ? playerState.lives : 3;
+                    return createElement('div',
                         {
-                            style: 'margin-right: 15px; color: white; font-size: 18px;'
+                            class: 'player-row',
+                            style: 'display: flex; align-items: center; margin-bottom: 15px;'
                         },
-                        player.name
-                    ),
-                    createElement('div',
-                        {
-                            class: 'lives',
-                            style: 'display: flex; gap: 5px;'
-                        },
-                        Array(3).fill().map(() =>
+                        [
+                            createElement('span',
+                                {
+                                    style: 'margin-right: 15px; color: white; font-size: 18px;'
+                                },
+                                player.name
+                            ),
                             createElement('div',
                                 {
-                                    class: 'heart',
-                                    style: 'width: 20px; height: 20px; border: 1px solid red; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
-                                }
+                                    class: 'lives',
+                                    style: 'display: flex; gap: 5px;'
+                                },
+                                Array(lives).fill().map(() =>
+                                    createElement('div',
+                                        {
+                                            class: 'heart',
+                                            style: 'width: 20px; height: 20px; border: 1px solid red; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
+                                        }
+                                    )
+                                )
                             )
-                        )
-                    )
-                ]
-            )
-        )
-    );
+                        ]
+                    );
+                })
+            );
+
+            const existingElement = document.querySelector('.player-list');
+            if (existingElement) {
+                existingElement.remove();
+            }
+
+            render(playerListElement, document.body);
+        }
+    };
+
+    updatePlayerList();
+
+    store.subscribe(() => {
+        updatePlayerList();
+    });
 }
+
+
 
 function createTimer() {
     return createElement(
@@ -140,7 +166,7 @@ export function GameBoard({ store, router, ws }) {
                         'Loading game map...'
                     )]
             ),
-            createPlayerList(players),
+            createPlayerList(players, store, state.playerName),
             KeyToPlay(),
             createTimer(),
             createElement('img', {
