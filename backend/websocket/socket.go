@@ -179,6 +179,8 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 		Mapping(msg.Msg)
 	case "POWER_UP":
 		HandlePowerUp(msg.Msg)
+	case "TAKE_DMG":
+		handelTakeDmg(msg.Msg);
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
 	}
@@ -205,6 +207,19 @@ func broadcastMessage(msgType string, payload interface{}) {
 			log.Printf("Broadcast error: %v", err)
 		}
 	}
+}
+
+func handelTakeDmg(msg json.RawMessage){
+	var playerID struct {
+		ID string `json:"ID"`
+	}
+
+	if err := json.Unmarshal(msg, &playerID); err != nil {
+		log.Printf("Failed to unmarshal player ID: %v", err)
+		return
+	}
+
+	broadcastMessage("TAKE_DMG", playerID);
 }
 
 func HandleChat(msg json.RawMessage) {
