@@ -225,6 +225,7 @@ func handelTakeDmg(msg json.RawMessage){
 	broadcastMessage("TAKE_DMG", playerID);
 }
 
+
 func HandleChat(msg json.RawMessage) {
 	var chat ChatMessage
 	if err := json.Unmarshal(msg, &chat); err != nil {

@@ -222,12 +222,15 @@ document.onkeydown = function(e) {
     }
 };
 
-// Modify the placeBomb function
 function placeBomb(x, y, playerId) {
     const state = store.getState();
     const player = state.players.find(p => p.ID === playerId);
     
-    // Send bomb placement message
+    if (detectCollision(x, y, playerId)) {
+        console.log("Cannot place bomb at this position due to collision.");
+        return null;  
+    }
+
     ws.sendMessage("BOMB_PLACE", {
         x: x,
         y: y,
@@ -250,43 +253,99 @@ function placeBomb(x, y, playerId) {
         `
     });
 
-    // Remove bomb element after explosion
+    document.body.appendChild(bombElement);
+
     setTimeout(() => {
         if (bombElement.parentNode) {
             bombElement.parentNode.removeChild(bombElement);
         }
     }, BOMB_COOLDOWN);
 
-    return bombElement;
+    movePlayerAfterBombPlacement(playerId);
+
+    return bombElement; 
 }
 
-// Update the keyup handler to reset initial keypress state
+function movePlayerAfterBombPlacement(playerId) {
+    const state = store.getState();
+    const player = state.players.find(p => p.ID === playerId);
+
+    const newX = player.x + tileSize; 
+    const newY = player.y; 
+    if (!detectCollision(newX, newY, playerId)) {
+        player.x = newX;
+        player.y = newY;
+
+        ws.sendMessage("PLAYER_MOVE", {
+            playerId: playerId,
+            newX: newX,
+            newY: newY
+        });
+
+        const playerElement = document.querySelector(`[data-player-id="${playerId}"]`);
+        if (playerElement) {
+            playerElement.style.left = `${newX}px`;
+            playerElement.style.top = `${newY}px`;
+        }
+    } else {
+        console.log("Player cannot move to the new position due to collision.");
+    }
+}
+
 document.onkeyup = function(e) {
     if (e.key in keyStates) {
         keyStates[e.key] = false;
-        isInitialKeypress = true;  // Reset for next keypress
+        isInitialKeypress = true;  
     }
 };
 
-// Collision detection function
-function detectCollision(x, y,playerID) {
+function detectCollision(x, y, playerID) {
     const state = store.getState();
     const map = state.map;
+    const players = state.players;
     if (!map) return true; // Block movement if map isn't loaded
 
     const row = Math.floor((x - 20) / tileSize);
     const col = Math.floor((y - 20) / tileSize);
+
     const powerUpElement = detectPowerUpCollision(x, y);
     if (powerUpElement) {
         collectPowerUp(playerID, powerUpElement);
         console.log(`Player ${playerID} collected power-up. ${powerUpElement}`);
         return false;
     }
+
     if (col < 0 || col >= map.length || row < 0 || row >= map[0].length) {
         return true;
     }
-    return map[col][row] === 1 || map[col][row] === 2;
+
+    if (map[col][row] === 1 || map[col][row] === 2) {
+        return true;
+    }
+
+    const bombElements = document.querySelectorAll('.bomb');
+    for (const bombElement of bombElements) {
+        const bombX = parseInt(bombElement.style.left);
+        const bombY = parseInt(bombElement.style.top);
+        const player = players.find(p => p.ID === playerID);
+        
+        if (player && Math.abs(bombX - x) < tileSize && Math.abs(bombY - y) < tileSize) {
+            if (Math.abs(player.x - bombX) < tileSize / 2 && Math.abs(player.y - bombY) < tileSize / 2) {
+                return false; 
+            }
+            return true;
+        }
+    }
+
+    for (const player of players) {
+        if (player.ID !== playerID && Math.abs(player.x - x) < tileSize && Math.abs(player.y - y) < tileSize) {
+            return true;
+        }
+    }
+
+    return false;
 }
+
 
 
 function updatePlayerPose() {

@@ -170,6 +170,26 @@ export class WebSocketService {
         }
     }
 
+    handleTakeDmg(ID) {
+        const state = this.store.getState();
+        const players = state.players.map(player => {
+            if (player.ID === ID.ID) {
+                const updatedLives = Math.max(player.lives - 1, 0); // Prevent negative lives
+                console.log(`Player ${ID} took damage! Lives left: ${updatedLives}`);
+                return { ...player, lives: updatedLives };
+            }
+            return player;
+        });
+    
+        this.store.setState({
+            ...state,
+            players
+        });
+    
+        console.log("after hit: ", state);        
+    }
+
+
     handelMove(moveData) {
         const { direction, playerName, x, y,  frameIndex} = moveData;
         console.log(`Player ${playerName} moved ${direction} to (${x}, ${y}) frameIndex: ${frameIndex}`);
@@ -207,19 +227,25 @@ export class WebSocketService {
     handlePlayerUpdate(players) {
         console.log("Updating players list", players);
         const currentState = this.store.getState();
-        
+    
+        const updatedPlayers = players.map(player => ({
+            ...player,
+            lives: player.lives !== undefined ? player.lives : 3 
+        }));
+    
         this.store.setState({
             ...currentState,
-            players: players,
+            players: updatedPlayers,
             isAuthenticated: true,
             reconnecting: false
         });
-
+    
         // Navigate to lobby if not already there
-        if (!currentState.gameStarted && players && players.length > 0) {
+        if (!currentState.gameStarted && updatedPlayers && updatedPlayers.length > 0) {
             this.router.navigate('/lobby');
         }
     }
+
     
     handleGameStart(data) {
         console.log("Game start received");
@@ -333,7 +359,6 @@ export class WebSocketService {
         
         mapElement.appendChild(bombElement);
     }
-
     handleBombExplode(explosionData) {
         try {
             const EXPLOSION_DURATION = 1000;
@@ -373,13 +398,11 @@ export class WebSocketService {
                 for (let i = 0; i <= Radius; i++) {
                     const explosionX = BombX + (dx * i * 50);
                     const explosionY = BombY + (dy * i * 50);
-                    
-                    // Check if this position hits a wall
+    
                     const tileX = Math.floor(explosionX / 50);
                     const tileY = Math.floor(explosionY / 50);
                     const map = this.store.getState().map;
-                    
-                    // Stop the explosion at walls
+    
                     if (map && map[tileY] && (map[tileY][tileX] === 1)) {
                         break;
                     }
@@ -413,10 +436,30 @@ export class WebSocketService {
                 }
             });
     
+            const players = this.store.getState().players;
+            players.forEach(player => {
+                const { x, y, ID } = player;
+                const playerTileX = Math.floor(x / 50);
+                const playerTileY = Math.floor(y / 50);
+    
+                console.log(`Checking player ${ID} at (${playerTileX}, ${playerTileY})`);
+    
+                if (
+                    (Math.abs(playerTileX - Math.floor(BombX / 50)) + Math.abs(playerTileY - Math.floor(BombY / 50)) <= Radius)
+                ) {
+                    console.log(`Player ${ID} hit by explosion!`);
+                    this.PlayerHit(ID);
+                }
+            });
         } catch (error) {
             console.error('Error in handleBombExplode:', error);
         }
     }
+    
+    PlayerHit(ID) {
+        this.sendMessage("TAKE_DMG", {ID: ID});
+    }
+    
     handleLobbyPhaseChange(data) {
         const state = this.store.getState();
         this.store.setState({
@@ -434,7 +477,7 @@ export class WebSocketService {
         flame: '/static/img/flamePower.png',
         speed: '/static/img/speed.png'
     };
-    
+
     
     handlePowerUp(powerUpData) {
         const { x, y, type } = powerUpData;

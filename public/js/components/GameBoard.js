@@ -1,3 +1,4 @@
+
 import { createElement, render } from "../core/dom.js";
 import { renderMap } from "../game/Map.js";
 import { Chat } from './Chat.js';
@@ -209,7 +210,3 @@ function KeyToPlay() {
        ]
     );
 }
-
-// const gameBoard = GameBoard();
-// const container = document.getElementById('app');
-// render(gameBoard, container);
