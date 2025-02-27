@@ -1,5 +1,4 @@
 import { createElement } from "../core/index.js";
-import { ws, store } from "../app.js";
 
 const BOMB_TIMER = 3000; // 3 seconds
 const EXPLOSION_DURATION = 1000; // 1 second
@@ -16,36 +15,6 @@ const explosionImages = [
     '/static/img/explosion4.png',
     '/static/img/explosion5.png'
 ];
-
-export function placeBomb(x, y, playerId) {
-    const tileX = x;
-    const tileY = y;
-    
-    // Send bomb placement message to server
-    ws.sendMessage("BOMB_PLACE", {
-        x: tileX,
-        y: tileY,
-        owner: playerId,
-        radius: BOMB_RADIUS
-    });
-
-    // Create bomb element
-    const bombElement = createElement("div", {
-        class: "bomb",
-        style: `
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            left: ${tileX + 5}px;
-            top: ${tileY + 5}px;
-            background-image: url('/static/img/Bomb.png');
-            background-size: contain;
-            z-index: 1;
-        `
-    });
-
-    return bombElement;
-}
 
 export function createExplosion(x, y, radius) {
     try {
@@ -76,7 +45,6 @@ export function createExplosion(x, y, radius) {
                 let currentFrame = 0;
                 const animate = () => {
                     if (currentFrame >= explosionFrameCount) {
-                        // Clear the background image on the last frame
                         explosion.style.backgroundImage = 'none';
                         return;
                     }
@@ -84,7 +52,6 @@ export function createExplosion(x, y, radius) {
                     currentFrame++;
                 };
 
-                // Start animation with slightly faster timing
                 const intervalId = setInterval(animate, EXPLOSION_DURATION / (explosionFrameCount + 1));
                 explosion.dataset.intervalId = intervalId;
                 

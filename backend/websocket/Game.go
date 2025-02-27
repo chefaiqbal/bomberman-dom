@@ -2,7 +2,10 @@ package bomber
 
 import (
 	"encoding/json"
+	//"fmt"
 	"log"
+	"math/rand"
+	"sync"
 	//"time"
 
 	"bomber/websocket/timer"
@@ -13,6 +16,8 @@ import (
 var gameStarted = false
 var (
 	gameTimer = timer.NewGameTimer(broadcastMessage)
+	activePowerUps = make(map[string]*PowerUp) // key is "x,y"
+	powerUpMu      sync.RWMutex
 )
 
 func Mapping(msg json.RawMessage) {
@@ -146,6 +151,23 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 	}
 }
 
+func spawnPowerUp(x, y int) {
+	// 30% chance to spawn a power-up
+	if rand.Float32() > 0.3 {
+		return
+	}
+
+	powerUpTypes := []PowerUpType{BombPowerUp, FlamePowerUp, SpeedPowerUp}
+	powerUp := &PowerUp{
+		X:    x,
+		Y:    y,
+		Type: powerUpTypes[rand.Intn(len(powerUpTypes))],
+	}
+
+	// Broadcast power-up spawn
+	broadcastMessage("POWER_UP", powerUp)
+}
+
 func calculateDestroyedBlocks(x, y, radius int) []struct{ X, Y int } {
 	var destroyed []struct{ X, Y int }
 	directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
@@ -158,20 +180,19 @@ func calculateDestroyedBlocks(x, y, radius int) []struct{ X, Y int } {
 			newX := x/50 + (dir[0] * i)
 			newY := y/50 + (dir[1] * i)
 
-			// Check map bounds
 			if newX < 0 || newY < 0 || newX >= len(currentMap[0]) || newY >= len(currentMap) {
 				break
 			}
 
-			// If we hit a wall, stop in this direction
 			if currentMap[newY][newX] == 1 {
 				break
 			}
 
-			// If we hit a destructible block, add it to destroyed list
 			if currentMap[newY][newX] == 2 {
 				destroyed = append(destroyed, struct{ X, Y int }{newX, newY})
-				currentMap[newY][newX] = 0 // Update the map
+				currentMap[newY][newX] = 0
+				// Spawn power-up when block is destroyed
+				go spawnPowerUp(newX*50+20, newY*50+20)
 				break
 			}
 		}

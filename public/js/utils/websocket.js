@@ -151,6 +151,9 @@ export class WebSocketService {
                         console.error(`Power-up element at (${x}, ${y}) not found.`);
                     }
                     break;
+                case 'POWER_UP_COLLECTED':
+                    this.handlePowerUpCollected(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -167,31 +170,10 @@ export class WebSocketService {
         }
     }
 
-    handleTakeDmg(ID) {
-        console.log("iddds: ", ID)
-        const state = this.store.getState();
-        const players = state.players.map(player => {
-            if (player.ID === ID.ID) {
-                const updatedLives = Math.max(player.lives - 1, 0); // Prevent negative lives
-                console.log(`Player ${ID} took damage! Lives left: ${updatedLives}`);
-                return { ...player, lives: updatedLives };
-            }
-            return player;
-        });
-    
-        this.store.setState({
-            ...state,
-            players
-        });
-    
-        console.log("after hit: ", state);        
-    }
-            
-
     handelMove(moveData) {
         const { direction, playerName, x, y,  frameIndex} = moveData;
         console.log(`Player ${playerName} moved ${direction} to (${x}, ${y}) frameIndex: ${frameIndex}`);
-    // const lives = 3
+    
         const state = this.store.getState();
         const players = state.players.map(player => 
             player.ID === playerName ? { ...player, x, y, frameIndex,direction } : player
@@ -225,21 +207,16 @@ export class WebSocketService {
     handlePlayerUpdate(players) {
         console.log("Updating players list", players);
         const currentState = this.store.getState();
-    
-        const updatedPlayers = players.map(player => ({
-            ...player,
-            lives: player.lives !== undefined ? player.lives : 3 
-        }));
-    
+        
         this.store.setState({
             ...currentState,
-            players: updatedPlayers,
+            players: players,
             isAuthenticated: true,
             reconnecting: false
         });
-    
+
         // Navigate to lobby if not already there
-        if (!currentState.gameStarted && updatedPlayers && updatedPlayers.length > 0) {
+        if (!currentState.gameStarted && players && players.length > 0) {
             this.router.navigate('/lobby');
         }
     }
@@ -247,7 +224,7 @@ export class WebSocketService {
     handleGameStart(data) {
         console.log("Game start received");
         const currentState = this.store.getState();
-
+        
         this.store.setState({
             ...currentState,
             gameStartTimer: 0,
@@ -360,26 +337,15 @@ export class WebSocketService {
     handleBombExplode(explosionData) {
         try {
             const EXPLOSION_DURATION = 1000;
-    
             console.log('Handling bomb explosion:', explosionData);
             const { BombX, BombY, Radius, Destroyed } = explosionData;
-    
-            // Normalize bomb position
-            const normalizedBombX = Math.floor(BombX / 50);
-            const normalizedBombY = Math.floor(BombY / 50);
-    
-            console.log(`Normalized bomb position: (${normalizedBombX}, ${normalizedBombY})`);
     
             // Remove existing bomb element
             const bombs = document.querySelectorAll('.bomb');
             bombs.forEach(bomb => {
-                const bombX = Math.floor(parseInt(bomb.style.left) / 50);
-                const bombY = Math.floor(parseInt(bomb.style.top) / 50);
-    
-                console.log(`Checking bomb at (${bombX}, ${bombY}) against explosion at (${normalizedBombX}, ${normalizedBombY})`);
-                
-                if (bombX === normalizedBombX && bombY === normalizedBombY) {
-                    console.log('Removing bomb element.');
+                const bombX = parseInt(bomb.style.left) - 5;
+                const bombY = parseInt(bomb.style.top) - 5;
+                if (bombX === BombX && bombY === BombY) {
                     bomb.remove();
                 }
             });
@@ -392,7 +358,7 @@ export class WebSocketService {
             }
     
             // Handle destroyed tiles
-            Destroyed.forEach(({ X, Y }) => {
+            Destroyed.forEach(({X, Y}) => {
                 const tileElement = mapElement.children[Y * 15 + X];
                 if (tileElement) {
                     tileElement.style.background = 'green';
@@ -401,42 +367,49 @@ export class WebSocketService {
                 }
             });
     
-            const players = this.store.getState().players;
-    
-            players.forEach(player => {
-                const { x, y, ID } = player;
-    
-                const playerTileX = Math.floor(x / 50);
-                const playerTileY = Math.floor(y / 50);
-    
-                console.log(`Checking player ${ID} at (${playerTileX}, ${playerTileY})`);
-    
-                if (
-                    (playerTileX === normalizedBombX && Math.abs(playerTileY - normalizedBombY) <= Radius) ||
-                    (playerTileY === normalizedBombY && Math.abs(playerTileX - normalizedBombX) <= Radius) ||
-                    (Math.abs(playerTileX - normalizedBombX) + Math.abs(playerTileY - normalizedBombY) <= Radius) 
-                ) {
-                    console.log(`Player ${ID} hit by explosion!`);
-                    this.PlayerHit(ID);
-                }
-            });
-    
-            const explosions = createExplosion(BombX, BombY, Radius);
-            explosions.forEach(explosion => {
-                if (explosion instanceof HTMLElement) {
-                    mapElement.appendChild(explosion);
+            // Create explosion animations for each tile in the radius
+            const directions = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
+            directions.forEach(([dx, dy]) => {
+                for (let i = 0; i <= Radius; i++) {
+                    const explosionX = BombX + (dx * i * 50);
+                    const explosionY = BombY + (dy * i * 50);
                     
-                    setTimeout(() => {
-                        const intervalId = parseInt(explosion.dataset.intervalId);
-                        if (!isNaN(intervalId)) {
-                            clearInterval(intervalId);
+                    // Check if this position hits a wall
+                    const tileX = Math.floor(explosionX / 50);
+                    const tileY = Math.floor(explosionY / 50);
+                    const map = this.store.getState().map;
+                    
+                    // Stop the explosion at walls
+                    if (map && map[tileY] && (map[tileY][tileX] === 1)) {
+                        break;
+                    }
+    
+                    const explosion = document.createElement('div');
+                    explosion.className = 'explosion';
+                    Object.assign(explosion.style, {
+                        position: 'absolute',
+                        width: '94px',
+                        height: '94px',
+                        left: (explosionX - 47 + 25) + 'px',
+                        top: (explosionY - 47 + 25) + 'px',
+                        backgroundImage: `url('/static/img/explosion1.png')`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        zIndex: '2'
+                    });
+    
+                    let frame = 0;
+                    const animate = setInterval(() => {
+                        if (frame >= 5) {
+                            clearInterval(animate);
+                            explosion.remove();
+                            return;
                         }
-                        if (explosion.parentNode) {
-                            explosion.parentNode.removeChild(explosion);
-                        }
-                    }, EXPLOSION_DURATION);
-                } else {
-                    console.error('Invalid explosion element:', explosion);
+                        explosion.style.backgroundImage = `url('/static/img/explosion${frame + 1}.png')`;
+                        frame++;
+                    }, EXPLOSION_DURATION / 5);
+    
+                    mapElement.appendChild(explosion);
                 }
             });
     
@@ -444,11 +417,6 @@ export class WebSocketService {
             console.error('Error in handleBombExplode:', error);
         }
     }
-
-    PlayerHit(ID) {
-        this.sendMessage("TAKE_DMG", {ID: ID})
-    }
-    
     handleLobbyPhaseChange(data) {
         const state = this.store.getState();
         this.store.setState({
@@ -496,17 +464,15 @@ export class WebSocketService {
         const currentState = this.store.getState();
         const updatedPlayers = currentState.players.map(player => {
             if (player.ID === powerUpData.playerID) {
-
                 const currentMaxBombs = player.maxBombs || 1;
                 const currentBombRadius = player.bombRadius || 2;
                 const currentSpeed = player.speed || 5;
-
+                
                 let newState = {
                     ...player,
                     maxBombs: currentMaxBombs,
                     bombRadius: currentBombRadius,
                     speed: currentSpeed
-                   
                 };
 
                 // Apply power-up effects

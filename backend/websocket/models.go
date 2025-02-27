@@ -36,10 +36,13 @@ type Bomb struct {
 }
 
 type Player struct {
-	ID    string `json:"id"`
-	X     int    `json:"x"`
-	Y     int    `json:"y"`
-	Lives int    `json:"lives"`
+	ID          string `json:"id"`
+	X           int    `json:"x"`
+	Y           int    `json:"y"`
+	Lives       int    `json:"lives"`
+	MaxBombs    int    `json:"maxBombs"`
+	BombRadius  int    `json:"bombRadius"`
+	Speed       int    `json:"speed"`
 }
 
 type ChatMessage struct {
@@ -82,8 +85,11 @@ type ChatHistory struct {
 
 // Add this with the other structs
 type Client struct {
-	conn *websocket.Conn
-	ID   string
+	conn       *websocket.Conn
+	ID         string
+	MaxBombs   int    // Add this
+	BombRadius int    // Add this
+	Speed      int    // Add this
 }
 
 // Package variables
@@ -100,8 +106,23 @@ var (
 	bombMu      sync.RWMutex
 )
 
+type PowerUpType string
+
+const (
+    BombPowerUp  PowerUpType = "bomb"
+    FlamePowerUp PowerUpType = "flame"
+    SpeedPowerUp PowerUpType = "speed"
+)
+
 type PowerUp struct {
-    X    int    `json:"x"`
-    Y    int    `json:"y"`
-    Type string `json:"type"` // "bomb", "flame", or "speed"
+    X    int        `json:"x"`
+    Y    int        `json:"y"`
+    Type PowerUpType `json:"type"`
+}
+
+type PowerUpCollected struct {
+    PlayerID string     `json:"playerID"`
+    Type     PowerUpType `json:"type"`
+    X        int        `json:"x"`
+    Y        int        `json:"y"`
 }

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-
-	//"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -58,7 +56,10 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	// Create initial client
 	client := &Client{
-		conn: conn,
+		conn:       conn,
+		MaxBombs:   1, // Initial value
+		BombRadius: 2, // Initial value
+		Speed:      5, // Initial value
 	}
 
 	mu.Lock()
@@ -179,6 +180,8 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 		Mapping(msg.Msg)
 	case "POWER_UP":
 		HandlePowerUp(msg.Msg)
+	case "POWER_UP_COLLECTED":
+		HandlePowerUpCollected(msg.Msg)
 	case "TAKE_DMG":
 		handelTakeDmg(msg.Msg);
 	default:
@@ -373,16 +376,42 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
 }
 
 func HandlePowerUp(msg json.RawMessage) {
-    var powerUp PowerUp
-    if err := json.Unmarshal(msg, &powerUp); err != nil {
-        log.Printf("Failed to unmarshal power up: %v", err)
-        return
-    }
-    log.Printf("Power up received: %+v", powerUp)
-    broadcastMessage("POWER_UP", powerUp)
+	var powerUp PowerUp
+	if err := json.Unmarshal(msg, &powerUp); err != nil {
+		log.Printf("Failed to unmarshal power up: %v", err)
+		return
+	}
+	log.Printf("Power up received: %+v", powerUp)
+	broadcastMessage("POWER_UP", powerUp)
+}
 
-    time.AfterFunc(4*time.Second, func() {
-        log.Printf("Power up at (%d, %d) removed.", powerUp.X, powerUp.Y)
-        broadcastMessage("REMOVE_POWER_UP", powerUp)
-    })
+func HandlePowerUpCollected(msg json.RawMessage) {
+	var collected PowerUpCollected
+	if err := json.Unmarshal(msg, &collected); err != nil {
+		log.Printf("Failed to unmarshal power-up collection: %v", err)
+		return
+	}
+
+	// Update player stats
+	mu.Lock()
+	if client, exists := clients[collected.PlayerID]; exists {
+		switch collected.Type {
+		case BombPowerUp:
+			if client.MaxBombs < 5 { // Limit max bombs
+				client.MaxBombs++
+			}
+		case FlamePowerUp:
+			if client.BombRadius < 5 { // Limit explosion radius
+				client.BombRadius++
+			}
+		case SpeedPowerUp:
+			if client.Speed < 8 { // Limit speed
+				client.Speed++
+			}
+		}
+	}
+	mu.Unlock()
+
+	// Broadcast power-up collection to all players
+	broadcastMessage("POWER_UP_COLLECTED", collected)
 }
