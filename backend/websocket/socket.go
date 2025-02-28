@@ -396,6 +396,10 @@ func HandlePowerUp(msg json.RawMessage) {
 	}
 	log.Printf("Power up received: %+v", powerUp)
 	broadcastMessage("POWER_UP", powerUp)
+	time.AfterFunc(4*time.Second, func() {
+        log.Printf("Power up at (%d, %d) removed.", powerUp.X, powerUp.Y)
+        broadcastMessage("REMOVE_POWER_UP", powerUp)
+    })
 }
 
 func HandlePowerUpCollected(msg json.RawMessage) {
