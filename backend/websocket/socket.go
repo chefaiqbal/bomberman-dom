@@ -14,6 +14,8 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+var lastDamageTime = make(map[string]time.Time)
+
 // Add an init function to clear all state when server starts
 func init() {
 	// Clear all maps and states
@@ -212,17 +214,27 @@ func broadcastMessage(msgType string, payload interface{}) {
 	}
 }
 
-func handelTakeDmg(msg json.RawMessage){
-	var playerID struct {
-		ID string `json:"ID"`
-	}
+func handelTakeDmg(msg json.RawMessage) {
+    var playerID struct {
+        ID string `json:"ID"`
+    }
 
-	if err := json.Unmarshal(msg, &playerID); err != nil {
-		log.Printf("Failed to unmarshal player ID: %v", err)
-		return
-	}
+    if err := json.Unmarshal(msg, &playerID); err != nil {
+        log.Printf("Failed to unmarshal player ID: %v", err)
+        return
+    }
 
-	broadcastMessage("TAKE_DMG", playerID);
+    // Check if player was recently damaged
+    if lastHit, exists := lastDamageTime[playerID.ID]; exists {
+        if time.Since(lastHit) < time.Second {
+            return 
+        }
+    }
+    
+    // Update last damage time
+    lastDamageTime[playerID.ID] = time.Now()
+
+    broadcastMessage("TAKE_DMG", playerID)
 }
 
 
