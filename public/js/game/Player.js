@@ -235,7 +235,7 @@ function placeBomb(x, y, playerId) {
         x: x,
         y: y,
         owner: playerId,
-        radius: player?.bombRadius || 2
+        radius: player?.bombRadius || 1
     });
 
     const bombElement = createElement("div", {

@@ -508,7 +508,7 @@ export class WebSocketService {
         const updatedPlayers = currentState.players.map(player => {
             if (player.ID === powerUpData.playerID) {
                 const currentMaxBombs = player.maxBombs || 1;
-                const currentBombRadius = player.bombRadius || 2;
+                const currentBombRadius = player.bombRadius || 1;
                 const currentSpeed = player.speed || 5;
                 
                 let newState = {

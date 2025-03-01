@@ -60,7 +60,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	client := &Client{
 		conn:       conn,
 		MaxBombs:   1, // Initial value
-		BombRadius: 2, // Initial value
+		BombRadius: 1, // Initial value
 		Speed:      5, // Initial value
 	}
 
