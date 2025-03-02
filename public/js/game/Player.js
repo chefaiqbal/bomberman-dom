@@ -269,60 +269,56 @@ function placeBomb(x, y, playerId) {
         }
     }, BOMB_COOLDOWN);
 
-    movePlayerAfterBombPlacement(playerId);
+    moveAfterBombPlacement(playerId);
 
     return bombElement;
 }
 
-
-function movePlayerAfterBombPlacement(playerId) {
+function moveAfterBombPlacement(playerId) {
     const state = store.getState();
     const player = state.players.find(p => p.ID === playerId);
 
-    const newX = player.x + tileSize; 
-    const newY = player.y; 
-    if (!detectCollision(newX, newY, playerId)) {
-        player.x = newX;
-        player.y = newY;
+    const directions = [
+        { dx: tileSize, dy: 0 },   
+        { dx: -tileSize, dy: 0 }, 
+        { dx: 0, dy: -tileSize }, 
+        { dx: 0, dy: tileSize }    
+    ];
 
-        ws.sendMessage("PLAYER_MOVE", {
-            playerId: playerId,
-            newX: newX,
-            newY: newY
-        });
+    for (const dir of directions) {
+        const newX = player.x + dir.dx;
+        const newY = player.y + dir.dy;
 
-        const playerElement = document.querySelector(`[data-player-id="${playerId}"]`);
-        if (playerElement) {
-            playerElement.style.left = `${newX}px`;
-            playerElement.style.top = `${newY}px`;
+        if (!detectCollision(newX, newY, playerId)) {
+            player.x = newX;
+            player.y = newY;
+
+            ws.sendMessage("PLAYER_MOVE", {
+                playerId: playerId,
+                newX: newX,
+                newY: newY
+            });
+
+            const playerElement = document.querySelector(`[data-player-id="${playerId}"]`);
+            if (playerElement) {
+                playerElement.style.left = `${newX}px`;
+                playerElement.style.top = `${newY}px`;
+            }
+            return;
         }
-    } else {
-        console.log("Player cannot move to the new position due to collision.");
     }
-}
 
-document.onkeyup = function(e) {
-    if (e.key in keyStates) {
-        keyStates[e.key] = false;
-        isInitialKeypress = true;  
-    }
-};
+    console.log("Player is stuck and can’t move after placing bomb!");
+}
 
 function detectCollision(x, y, playerID) {
     const state = store.getState();
     const map = state.map;
     const players = state.players;
-    if (!map) return true; // Block movement if map isn't loaded
+    if (!map) return true; 
 
     const row = Math.floor((x - 20) / tileSize);
     const col = Math.floor((y - 20) / tileSize);
-
-    const powerUpElement = detectPowerUpCollision(x, y);
-    if (powerUpElement) {
-        collectPowerUp(playerID, powerUpElement);
-        console.log(`Player ${playerID} collected power-up. ${powerUpElement}`);
-        return false;
-    }
 
     if (col < 0 || col >= map.length || row < 0 || row >= map[0].length) {
         return true;
@@ -332,16 +328,25 @@ function detectCollision(x, y, playerID) {
         return true;
     }
 
+    const powerUpElement = detectPowerUpCollision(x, y);
+    if (powerUpElement) {
+        collectPowerUp(playerID, powerUpElement);
+        console.log(`Player ${playerID} collected power-up.`);
+        return false;
+    }
+
     const bombElements = document.querySelectorAll('.bomb');
     for (const bombElement of bombElements) {
         const bombX = parseInt(bombElement.style.left);
         const bombY = parseInt(bombElement.style.top);
-        const player = players.find(p => p.ID === playerID);
         
-        if (player && Math.abs(bombX - x) < tileSize && Math.abs(bombY - y) < tileSize) {
-            if (Math.abs(player.x - bombX) < tileSize / 2 && Math.abs(player.y - bombY) < tileSize / 2) {
-                return false; 
-            }
+        const playerTileX = Math.floor(x / tileSize);
+        const playerTileY = Math.floor(y / tileSize);
+        const bombTileX = Math.floor(bombX / tileSize);
+        const bombTileY = Math.floor(bombY / tileSize);
+
+        if (playerTileX === bombTileX && playerTileY === bombTileY) {
+            console.log(`Collision with bomb at (${bombX}, ${bombY})`);
             return true;
         }
     }
@@ -354,6 +359,13 @@ function detectCollision(x, y, playerID) {
 
     return false;
 }
+
+document.onkeyup = function(e) {
+    if (e.key in keyStates) {
+        keyStates[e.key] = false;
+        isInitialKeypress = true;
+    }
+};
 
 
 
