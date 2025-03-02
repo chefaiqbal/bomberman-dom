@@ -231,6 +231,13 @@ function placeBomb(x, y, playerId) {
         return null;  
     }
 
+    // Check for existing unexploded bombs from this player
+    const existingBombs = document.querySelectorAll(`.bomb[data-owner="${playerId}"]:not(.exploded)`);
+    if (existingBombs.length > 0) {
+        console.log("Cannot place bomb - waiting for previous bomb to explode");
+        return null;
+    }
+
     ws.sendMessage("BOMB_PLACE", {
         x: x,
         y: y,
@@ -257,14 +264,16 @@ function placeBomb(x, y, playerId) {
 
     setTimeout(() => {
         if (bombElement.parentNode) {
+            bombElement.classList.add('exploded');
             bombElement.parentNode.removeChild(bombElement);
         }
     }, BOMB_COOLDOWN);
 
     movePlayerAfterBombPlacement(playerId);
 
-    return bombElement; 
+    return bombElement;
 }
+
 
 function movePlayerAfterBombPlacement(playerId) {
     const state = store.getState();

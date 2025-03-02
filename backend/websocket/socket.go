@@ -273,78 +273,102 @@ func HandleMove(msg json.RawMessage) {
 }
 
 func HandleBomb(msg json.RawMessage) {
-	var bomb Bomb
-	if err := json.Unmarshal(msg, &bomb); err != nil {
-		log.Printf("Failed to unmarshal bomb: %v", err)
-		return
-	}
+    var bomb Bomb
+    if err := json.Unmarshal(msg, &bomb); err != nil {
+        log.Printf("Failed to unmarshal bomb: %v", err)
+        return
+    }
 
-	// Add bomb to active bombs
-	bombMu.Lock()
-	bomb.Timer = 3000 // 3 seconds
-	bomb.PlacedAt = time.Now().UnixNano() / int64(time.Millisecond)
-	bomb.Exploded = false
-	activeBombs = append(activeBombs, bomb)
-	bombMu.Unlock()
+    // Check for unexploded bombs from same owner
+    bombMu.Lock()
+    hasUnexplodedBomb := false
+    for _, b := range activeBombs {
+        if b.Owner == bomb.Owner && !b.Exploded {
+            hasUnexplodedBomb = true
+            break
+        }
+    }
 
-	// Broadcast bomb placement
-	broadcastMessage("BOMB_PLACE", bomb)
+    if hasUnexplodedBomb {
+        bombMu.Unlock()
+        return
+    }
 
-	// Start bomb timer
-	go func() {
-		time.Sleep(3 * time.Second)
+    bomb.Timer = 3000 // 3 seconds
+    bomb.PlacedAt = time.Now().UnixNano() / int64(time.Millisecond)
+    bomb.Exploded = false
+    activeBombs = append(activeBombs, bomb)
+    bombMu.Unlock()
 
-		// Remove bomb from active bombs
-		bombMu.Lock()
-		for i, b := range activeBombs {
-			if b.X == bomb.X && b.Y == bomb.Y {
-				activeBombs = append(activeBombs[:i], activeBombs[i+1:]...)
-				break
-			}
-		}
-		bombMu.Unlock()
+    // Broadcast bomb placement
+    broadcastMessage("BOMB_PLACE", bomb)
 
-		// Calculate explosion area and destroyed blocks
-		mapMu.Lock()
-		// Check each direction for explosion spread
-		directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
-		destroyedTiles := make([]struct{ X, Y int }, 0)
+    // Start bomb timer
+    go func() {
+        time.Sleep(3 * time.Second)
 
-		for _, dir := range directions {
-			for i := 0; i <= bomb.Radius; i++ {
-				newX := bomb.X/50 + (dir[0] * i)
-				newY := bomb.Y/50 + (dir[1] * i)
+        // Remove bomb from active bombs
+        bombMu.Lock()
+        for i, b := range activeBombs {
+            if b.X == bomb.X && b.Y == bomb.Y {
+                activeBombs = append(activeBombs[:i], activeBombs[i+1:]...)
+                break
+            }
+        }
+        bombMu.Unlock()
 
-				// Check bounds
-				if newY >= 0 && newY < len(currentMap) && newX >= 0 && newX < len(currentMap[0]) {
-					// If destructible wall
-					if currentMap[newY][newX] == 2 {
-						currentMap[newY][newX] = 0 // Mark as destroyed
-						destroyedTiles = append(destroyedTiles, struct{ X, Y int }{X: newX, Y: newY})
-						break // Stop explosion in this direction after hitting destructible wall
-					}
-					// If indestructible wall, stop explosion in this direction
-					if currentMap[newY][newX] == 1 {
-						break
-					}
-				}
-			}
-		}
-		mapMu.Unlock()
+        // Calculate explosion area and destroyed blocks
+        mapMu.Lock()
+        // Check each direction for explosion spread
+        directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+        destroyedTiles := make([]struct{ X, Y int }, 0)
 
-		// Broadcast explosion
-		explosionData := map[string]interface{}{
-			"BombX":     bomb.X,
-			"BombY":     bomb.Y,
-			"Radius":    bomb.Radius,
-			"Destroyed": destroyedTiles,
-		}
+        for _, dir := range directions {
+            for i := 0; i <= bomb.Radius; i++ {
+                newX := bomb.X/50 + (dir[0] * i)
+                newY := bomb.Y/50 + (dir[1] * i)
 
-		// Broadcast updated map and explosion
-		broadcastMessage("MAP", currentMap)
-		broadcastMessage("BOMB_EXPLODE", explosionData)
-	}()
+                // Check bounds
+                if newY >= 0 && newY < len(currentMap) && newX >= 0 && newX < len(currentMap[0]) {
+                    // If destructible wall
+                    if currentMap[newY][newX] == 2 {
+                        currentMap[newY][newX] = 0 // Mark as destroyed
+                        destroyedTiles = append(destroyedTiles, struct{ X, Y int }{X: newX, Y: newY})
+                        break // Stop explosion in this direction after hitting destructible wall
+                    }
+                    // If indestructible wall, stop explosion in this direction
+                    if currentMap[newY][newX] == 1 {
+                        break
+                    }
+                }
+            }
+        }
+        mapMu.Unlock()
+
+        // Mark bomb as exploded
+        bombMu.Lock()
+        for i := range activeBombs {
+            if activeBombs[i].X == bomb.X && activeBombs[i].Y == bomb.Y {
+                activeBombs[i].Exploded = true
+                break
+            }
+        }
+        bombMu.Unlock()
+
+        // Broadcast explosion
+        explosionData := map[string]interface{}{
+            "BombX":     bomb.X,
+            "BombY":     bomb.Y,
+            "Radius":    bomb.Radius,
+            "Destroyed": destroyedTiles,
+        }
+
+        // Broadcast updated map and explosion
+        broadcastMessage("MAP", currentMap)
+        broadcastMessage("BOMB_EXPLODE", explosionData)
+    }()
 }
+
 
 func HandleAuth(msg json.RawMessage) *AuthResponse {
 	var player Player
