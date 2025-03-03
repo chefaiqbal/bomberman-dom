@@ -143,7 +143,6 @@ function gameLoop() {
     });
     requestAnimationFrame(gameLoop);
 }
-
 // Handle key down
 document.onkeydown = function(e) {
     const states = store.getState();
@@ -164,27 +163,28 @@ document.onkeydown = function(e) {
     if (state.moving) return;
 
     const currentTime = Date.now();
-    // Allow movement if it's initial keypress or enough time has passed
-    if (!isInitialKeypress && currentTime - lastMoveTime < MOVEMENT_COOLDOWN) return;
+    const player = states.players.find(p => p.ID === playerID);
+    const speedMultiplier = (player?.speed || 5) / 5; 
+    const effectiveCooldown = MOVEMENT_COOLDOWN / speedMultiplier;
+
+    if (!isInitialKeypress && currentTime - lastMoveTime < effectiveCooldown) return;
 
     let newX = state.x, newY = state.y, frameIndex = state.frameIndex;
-    const player = states.players.find(p => p.ID === playerID);
-    const speedMultiplier = (player?.speed || 5) / 5; // Calculate speed boost
 
     if (keyStates["ArrowLeft"]) {
-        newX -= tileSize * speedMultiplier;
+        newX -= tileSize; 
         ws.sendMessage("MOVE", { direction: "ArrowLeft", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (keyStates["ArrowRight"]) {
-        newX += tileSize * speedMultiplier;
+        newX += tileSize; 
         ws.sendMessage("MOVE", { direction: "ArrowRight", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (keyStates["ArrowUp"]) {
-        newY -= tileSize * speedMultiplier;
+        newY -= tileSize;
         ws.sendMessage("MOVE", { direction: "ArrowUp", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
     if (keyStates["ArrowDown"]) {
-        newY += tileSize * speedMultiplier;
+        newY += tileSize; 
         ws.sendMessage("MOVE", { direction: "ArrowDown", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
 
@@ -198,7 +198,7 @@ document.onkeydown = function(e) {
             frameIndex: (state.frameIndex + 1) % 3
         });
         lastMoveTime = currentTime;
-        isInitialKeypress = false;  // Reset the initial keypress flag
+        isInitialKeypress = false;  
     }
 
     // Add bomb placement on spacebar
