@@ -192,6 +192,12 @@ export class WebSocketService {
 
     handelMove(moveData) {
         const { direction, playerName, x, y,  frameIndex} = moveData;
+
+        if (typeof x !== 'number' || typeof y !== 'number') {
+            console.error("Invalid coordinates received:", x, y);
+            return;
+        }
+        
         console.log(`Player ${playerName} moved ${direction} to (${x}, ${y}) frameIndex: ${frameIndex}`);
     
         const state = this.store.getState();

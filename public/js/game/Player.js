@@ -315,7 +315,13 @@ function detectCollision(x, y, playerID) {
     const state = store.getState();
     const map = state.map;
     const players = state.players;
-    if (!map) return true; 
+    if (!map) return true;
+
+    // Validate coordinates
+    if (isNaN(x) || isNaN(y)) {
+        console.log("Invalid coordinates:", x, y);
+        return true;
+    }
 
     const row = Math.floor((x - 20) / tileSize);
     const col = Math.floor((y - 20) / tileSize);
@@ -337,8 +343,8 @@ function detectCollision(x, y, playerID) {
 
     const bombElements = document.querySelectorAll('.bomb');
     for (const bombElement of bombElements) {
-        const bombX = parseInt(bombElement.style.left);
-        const bombY = parseInt(bombElement.style.top);
+        const bombX = parseInt(bombElement.style.left) || 0;
+        const bombY = parseInt(bombElement.style.top) || 0;
         
         const playerTileX = Math.floor(x / tileSize);
         const playerTileY = Math.floor(y / tileSize);
@@ -366,7 +372,6 @@ document.onkeyup = function(e) {
         isInitialKeypress = true;
     }
 };
-
 
 
 function updatePlayerPose() {
