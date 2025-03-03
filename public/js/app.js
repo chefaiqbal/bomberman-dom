@@ -5,6 +5,7 @@ import { WebSocketService } from './utils/websocket.js';
 import { GameBoard } from './components/GameBoard.js';
 import { generateMap } from './game/Map.js';
 import { PreGameLobby } from './components/PreGameLobby.js';
+import { createLoseBanner } from './components/Banners.js';
 
 const initialState = {
     playerId: Math.random().toString(36).substring(7),
@@ -45,6 +46,9 @@ const router = createRouter({
         } else {
             render(Lobby({ store, router, ws }), appElement);
         }
+    },
+    '/lose': () => {
+        render(createLoseBanner(), appElement);
     },
     '/game': () => {
         const state = store.getState();

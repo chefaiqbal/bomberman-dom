@@ -176,6 +176,13 @@ export class WebSocketService {
             if (player.ID === ID.ID) {
                 const updatedLives = Math.max(player.lives - 1, 0); // Prevent negative lives
                 console.log(`Player ${ID} took damage! Lives left: ${updatedLives}`);
+    
+                // Check if the player has lost
+                if (updatedLives === 0) {
+                    console.log(`Player ${ID} has lost the game!`);
+                    this.router.navigate('/lose'); // Navigate to the lose route
+                }
+    
                 return { ...player, lives: updatedLives };
             }
             return player;
@@ -186,7 +193,7 @@ export class WebSocketService {
             players
         });
     
-        console.log("after hit: ", state);        
+        console.log("after hit: ", state);
     }
 
 
