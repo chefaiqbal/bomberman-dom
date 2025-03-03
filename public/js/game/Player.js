@@ -143,19 +143,20 @@ function gameLoop() {
     });
     requestAnimationFrame(gameLoop);
 }
+let lastPressedKey = null;
+
 // Handle key down
 document.onkeydown = function(e) {
     const states = store.getState();
     const playerID = states.playerName;
     if (!playerStores[playerID]) return;
 
-    // Update key state
-    if (e.key in keyStates) {
-        // If this key wasn't already pressed, it's an initial keypress
+    if (e.key in directions) {
         if (!keyStates[e.key]) {
             isInitialKeypress = true;
         }
         keyStates[e.key] = true;
+        lastPressedKey = e.key; 
         e.preventDefault();
     }
 
@@ -171,19 +172,17 @@ document.onkeydown = function(e) {
 
     let newX = state.x, newY = state.y, frameIndex = state.frameIndex;
 
-    if (keyStates["ArrowLeft"]) {
+    // Use the last pressed key for movement
+    if (lastPressedKey === "ArrowLeft") {
         newX -= tileSize; 
         ws.sendMessage("MOVE", { direction: "ArrowLeft", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
-    }
-    if (keyStates["ArrowRight"]) {
+    } else if (lastPressedKey === "ArrowRight") {
         newX += tileSize; 
         ws.sendMessage("MOVE", { direction: "ArrowRight", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
-    }
-    if (keyStates["ArrowUp"]) {
+    } else if (lastPressedKey === "ArrowUp") {
         newY -= tileSize;
         ws.sendMessage("MOVE", { direction: "ArrowUp", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
-    }
-    if (keyStates["ArrowDown"]) {
+    } else if (lastPressedKey === "ArrowDown") {
         newY += tileSize; 
         ws.sendMessage("MOVE", { direction: "ArrowDown", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
     }
@@ -194,19 +193,17 @@ document.onkeydown = function(e) {
             targetX: newX,
             targetY: newY,
             moving: true,
-            direction: directions[e.key],
+            direction: directions[lastPressedKey], // Use the last pressed key for direction
             frameIndex: (state.frameIndex + 1) % 3
         });
         lastMoveTime = currentTime;
         isInitialKeypress = false;  
     }
 
-    // Add bomb placement on spacebar
     if (e.key === " ") {
         const playerState = playerStores[playerID].getState();
         const player = states.players.find(p => p.ID === playerID);
         
-        // Get current active bombs for this player
         const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
         const maxBombs = player?.maxBombs || 1;
         
@@ -370,9 +367,11 @@ document.onkeyup = function(e) {
     if (e.key in keyStates) {
         keyStates[e.key] = false;
         isInitialKeypress = true;
+        if (e.key === lastPressedKey) {
+            lastPressedKey = null;
+        }
     }
 };
-
 
 function updatePlayerPose() {
     try {
