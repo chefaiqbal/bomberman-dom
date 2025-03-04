@@ -180,15 +180,11 @@ export class WebSocketService {
                 const updatedLives = Math.max(player.lives - 1, 0); // Prevent negative lives
                 console.log(`Player ${ID.ID} took damage! Lives left: ${updatedLives}`);
     
-                // Check if the player has lost (lives reached 0)
                 if (updatedLives === 0) {
                     console.log(`Player ${ID.ID} has lost the game!`);
                     
-                    // Notify the server that this player has lost
                     this.sendMessage('PLAYER_LOST', { playerID: ID.ID });
-    
-                    // Only navigate the losing player to the lose route
-                    if (player.ID === this.store.getState().playerName) {
+                        if (player.ID === this.store.getState().playerName) {
                         this.router.navigate('/lose');
                     }
                 }
@@ -582,6 +578,24 @@ export class WebSocketService {
             players: updatedPlayers
         });
     }
+    handleLostPlayer(lostPlayerData) {
+        console.log("Player lost:", lostPlayerData);
+        const state = this.store.getState();
+        const players = state.players.filter(player => player.ID !== lostPlayerData.playerID);
+    
+        this.store.setState({
+            ...state,
+            players
+        });
+    
+        // Remove the player from the UI
+        const lostPlayerElement = document.querySelector(`.player[data-name="${lostPlayerData.playerID}"]`);
+        if (lostPlayerElement) {
+            lostPlayerElement.remove();
+        }
+    
+        console.log(`Player ${lostPlayerData.playerID} has been removed from the game.`);
+    }
 
 }
 
@@ -610,3 +624,5 @@ function spawnPowerUp(x, y, webSocketService) {
         }
     }
 }
+
+

@@ -241,15 +241,24 @@ func handelTakeDmg(msg json.RawMessage) {
 
 
 func handlePlayerLost(msg json.RawMessage) {
+    // Log the raw message for debugging
+    log.Printf("Raw message: %s", string(msg))
+
+    // Define a struct that matches the expected JSON structure
     var playerID struct {
-        ID string `json:"ID"`
+        ID string `json:"playerID"` // Ensure this matches the JSON field name
     }
 
+    // Unmarshal the JSON into the struct
     if err := json.Unmarshal(msg, &playerID); err != nil {
         log.Printf("Failed to unmarshal player ID: %v", err)
         return
     }
-log.Printf("Player lost: %s", playerID.ID)
+
+    // Log the populated struct
+    log.Printf("Player lost: %+v", playerID)
+
+    // Broadcast the message
     broadcastMessage("PLAYER_LOST", playerID)
 }
 
