@@ -1,4 +1,4 @@
-import { createElement, render, createStore } from "../core/index.js";
+import { createElement, render, createStore, addEvent,triggerEvent } from "../core/index.js";
 import { ws, store } from "../app.js"; 
 import { createExplosion } from "./Bomb.js";
 
@@ -146,78 +146,79 @@ function gameLoop() {
 let lastPressedKey = null;
 
 // Handle key down
-document.onkeydown = function(e) {
+function handleKeyDown(e) {
     const states = store.getState();
     const playerID = states.playerName;
     if (!playerStores[playerID]) return;
-
+  
     if (e.key in directions) {
-        if (!keyStates[e.key]) {
-            isInitialKeypress = true;
-        }
-        keyStates[e.key] = true;
-        lastPressedKey = e.key; 
-        e.preventDefault();
+      if (!keyStates[e.key]) {
+        isInitialKeypress = true;
+      }
+      keyStates[e.key] = true;
+      lastPressedKey = e.key; 
+      e.preventDefault();
     }
-
+  
     const state = playerStores[playerID].getState();
     if (state.moving) return;
-
+  
     const currentTime = Date.now();
     const player = states.players.find(p => p.ID === playerID);
     const speedMultiplier = (player?.speed || 5) / 5; 
     const effectiveCooldown = MOVEMENT_COOLDOWN / speedMultiplier;
-
+  
     if (!isInitialKeypress && currentTime - lastMoveTime < effectiveCooldown) return;
-
+  
     let newX = state.x, newY = state.y, frameIndex = state.frameIndex;
-
-    // Use the last pressed key for movement
+  
     if (lastPressedKey === "ArrowLeft") {
-        newX -= tileSize; 
-        ws.sendMessage("MOVE", { direction: "ArrowLeft", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
+      newX -= tileSize; 
+      ws.sendMessage("MOVE", { direction: "ArrowLeft", playerName: playerID, x: newX, y: newY, frameIndex });
     } else if (lastPressedKey === "ArrowRight") {
-        newX += tileSize; 
-        ws.sendMessage("MOVE", { direction: "ArrowRight", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
+      newX += tileSize; 
+      ws.sendMessage("MOVE", { direction: "ArrowRight", playerName: playerID, x: newX, y: newY, frameIndex });
     } else if (lastPressedKey === "ArrowUp") {
-        newY -= tileSize;
-        ws.sendMessage("MOVE", { direction: "ArrowUp", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
+      newY -= tileSize;
+      ws.sendMessage("MOVE", { direction: "ArrowUp", playerName: playerID, x: newX, y: newY, frameIndex });
     } else if (lastPressedKey === "ArrowDown") {
-        newY += tileSize; 
-        ws.sendMessage("MOVE", { direction: "ArrowDown", playerName: playerID, x: newX, y: newY, frameIndex: frameIndex });
+      newY += tileSize; 
+      ws.sendMessage("MOVE", { direction: "ArrowDown", playerName: playerID, x: newX, y: newY, frameIndex });
     }
-
+  
     if (!detectCollision(newX, newY, playerID)) {
-        playerStores[playerID].setState({
-            ...state,
-            targetX: newX,
-            targetY: newY,
-            moving: true,
-            direction: directions[lastPressedKey], // Use the last pressed key for direction
-            frameIndex: (state.frameIndex + 1) % 3
-        });
-        lastMoveTime = currentTime;
-        isInitialKeypress = false;  
+      playerStores[playerID].setState({
+        ...state,
+        targetX: newX,
+        targetY: newY,
+        moving: true,
+        direction: directions[lastPressedKey],
+        frameIndex: (state.frameIndex + 1) % 3
+      });
+      lastMoveTime = currentTime;
+      isInitialKeypress = false;  
     }
-
+  
     if (e.key === " ") {
-        const playerState = playerStores[playerID].getState();
-        const player = states.players.find(p => p.ID === playerID);
-        
-        const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
-        const maxBombs = player?.maxBombs || 1;
-        
-        if (activeBombs.length < maxBombs) {
-            const bombElement = placeBomb(playerState.x, playerState.y, playerID);
-            if (bombElement) {
-                const mapElement = document.querySelector(".map");
-                if (mapElement) {
-                    render(bombElement, mapElement);
-                }
-            }
+      const playerState = playerStores[playerID].getState();
+      const player = states.players.find(p => p.ID === playerID);
+      const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
+      const maxBombs = player?.maxBombs || 1;
+      
+      if (activeBombs.length < maxBombs) {
+        const bombElement = placeBomb(playerState.x, playerState.y, playerID);
+        if (bombElement) {
+          const mapElement = document.querySelector(".map");
+          if (mapElement) {
+            render(bombElement, mapElement);
+          }
         }
+      }
     }
-};
+  }
+  
+  addEvent(document, 'keydown', handleKeyDown);
+  
 
 function placeBomb(x, y, playerId) {
     const state = store.getState();
