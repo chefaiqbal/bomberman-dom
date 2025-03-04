@@ -186,6 +186,8 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 		HandlePowerUpCollected(msg.Msg)
 	case "TAKE_DMG":
 		handelTakeDmg(msg.Msg);
+	case "PLAYER_LOST": 
+		handlePlayerLost(msg.Msg);
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
 	}
@@ -235,6 +237,20 @@ func handelTakeDmg(msg json.RawMessage) {
     lastDamageTime[playerID.ID] = time.Now()
 
     broadcastMessage("TAKE_DMG", playerID)
+}
+
+
+func handlePlayerLost(msg json.RawMessage) {
+    var playerID struct {
+        ID string `json:"ID"`
+    }
+
+    if err := json.Unmarshal(msg, &playerID); err != nil {
+        log.Printf("Failed to unmarshal player ID: %v", err)
+        return
+    }
+log.Printf("Player lost: %s", playerID.ID)
+    broadcastMessage("PLAYER_LOST", playerID)
 }
 
 
@@ -456,3 +472,4 @@ func HandlePowerUpCollected(msg json.RawMessage) {
 	// Broadcast power-up collection to all players
 	broadcastMessage("POWER_UP_COLLECTED", collected)
 }
+

@@ -154,6 +154,9 @@ export class WebSocketService {
                 case 'POWER_UP_COLLECTED':
                     this.handlePowerUpCollected(data.data);
                     break;
+                case 'PLAYER_LOST':
+                    this.handleLostPlayer(data.data);
+                    break;    
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -175,12 +178,19 @@ export class WebSocketService {
         const players = state.players.map(player => {
             if (player.ID === ID.ID) {
                 const updatedLives = Math.max(player.lives - 1, 0); // Prevent negative lives
-                console.log(`Player ${ID} took damage! Lives left: ${updatedLives}`);
+                console.log(`Player ${ID.ID} took damage! Lives left: ${updatedLives}`);
     
-                // Check if the player has lost
+                // Check if the player has lost (lives reached 0)
                 if (updatedLives === 0) {
-                    console.log(`Player ${ID} has lost the game!`);
-                    this.router.navigate('/lose'); // Navigate to the lose route
+                    console.log(`Player ${ID.ID} has lost the game!`);
+                    
+                    // Notify the server that this player has lost
+                    this.sendMessage('PLAYER_LOST', { playerID: ID.ID });
+    
+                    // Only navigate the losing player to the lose route
+                    if (player.ID === this.store.getState().playerName) {
+                        this.router.navigate('/lose');
+                    }
                 }
     
                 return { ...player, lives: updatedLives };
@@ -188,13 +198,30 @@ export class WebSocketService {
             return player;
         });
     
+        // Update the state
         this.store.setState({
             ...state,
             players
         });
     
-        console.log("after hit: ", state);
+        console.log("after hit: ", this.store.getState());
+    
+        // Check for a winner (only one player left with lives > 0)
+        const alivePlayers = players.filter(player => player.lives > 0);
+        if (alivePlayers.length === 1) {
+            const winner = alivePlayers[0];
+            console.log(`Player ${winner.ID} has won the game!`);
+            
+            // Notify the server about the winner
+            this.sendMessage('PLAYER_WON', { playerID: winner.ID });
+    
+            // Navigate the winning player to the win route
+            if (winner.ID === this.store.getState().playerName) {
+                this.router.navigate('/win');
+            }
+        }
     }
+    
 
 
     handelMove(moveData) {
