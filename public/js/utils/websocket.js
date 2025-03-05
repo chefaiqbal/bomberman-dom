@@ -543,32 +543,32 @@ export class WebSocketService {
         const currentState = this.store.getState();
         console.log("Current state before update:", currentState);
         console.log("Power-up data:", powerUpData);
-    
+
         const updatedPlayers = currentState.players.map(player => {
             if (player.ID === powerUpData.playerID) {
                 console.log("Player matched for power-up:", player);
-    
+
                 const updatedPlayer = { ...player };
-    
+
                 const newPlayerState = {
                     ...updatedPlayer,
                     MaxBombs: powerUpData.type === 'bomb' && !updatedPlayer.collectedPowerUps?.includes('bomb') ? (updatedPlayer.MaxBombs || 0) + 1 : updatedPlayer.MaxBombs,
                     BombRadius: powerUpData.type === 'flame' && !updatedPlayer.collectedPowerUps?.includes('flame') ? (updatedPlayer.BombRadius || 0) + 1 : updatedPlayer.BombRadius,
                     Speed: powerUpData.type === 'speed' && !updatedPlayer.collectedPowerUps?.includes('speed') ? (updatedPlayer.Speed || 5) + 1 : updatedPlayer.Speed,
                 };
-    
+
                 console.log("Updated player stats after power-up:", newPlayerState);
                 return newPlayerState; 
             }
             return player; 
         });
-    
+
         if (JSON.stringify(currentState.players) !== JSON.stringify(updatedPlayers)) {
             this.store.setState({
                 ...currentState,
                 players: updatedPlayers,
             });
-    
+
             console.log("State immediately after setState:", this.store.getState());
         } else {
             console.log("No changes detected in player state, skipping setState.");

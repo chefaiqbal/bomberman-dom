@@ -200,79 +200,76 @@ function handleKeyDown(e) {
     }
   
     if (e.key === " ") {
-      const playerState = playerStores[playerID].getState();
-      const player = states.players.find(p => p.ID === playerID);
-      const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
-      const maxBombs = player?.MaxBombs || 1
-
-    
-      console.log("max bombsss: " ,maxBombs);
-      console.log("playyyyyr, ", player);
-
-      if (activeBombs.length < maxBombs) {
-        const bombElement = placeBomb(playerState.x, playerState.y, playerID);
-        if (bombElement) {
-          const mapElement = document.querySelector(".map");
-          if (mapElement) {
-            render(bombElement, mapElement);
+        const playerState = playerStores[playerID].getState();
+        const player = states.players.find(p => p.ID === playerID);
+        const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
+        const maxBombs = player?.MaxBombs || 1;
+      
+        console.log("max bombsss: ", maxBombs);
+      
+        // Player can place bombs as long as they haven't reached their MaxBombs
+        if (activeBombs.length < maxBombs) {
+          const bombElement = placeBomb(playerState.x, playerState.y, playerID);
+          if (bombElement) {
+            const mapElement = document.querySelector(".map");
+            if (mapElement) {
+              render(bombElement, mapElement);
+            }
           }
         }
       }
-    }
+      
   }
   
   addEvent(document, 'keydown', handleKeyDown);
   
 
-function placeBomb(x, y, playerId) {
+  function placeBomb(x, y, playerId) {
     const state = store.getState();
     const player = state.players.find(p => p.ID === playerId);
+    
     if (detectCollision(x, y, playerId)) {
-        console.log("Cannot place bomb at this position due to collision.");
-        return null;  
+      console.log("Cannot place bomb at this position due to collision.");
+      return null;
     }
-
-    // Check for existing unexploded bombs from this player
-    const existingBombs = document.querySelectorAll(`.bomb[data-owner="${playerId}"]:not(.exploded)`);
-    if (existingBombs.length > 0) {
-        console.log("Cannot place bomb - waiting for previous bomb to explode");
-        return null;
-    }
-
-    ws.sendMessage("BOMB_PLACE", {
-        x: x,
-        y: y,
-        owner: playerId,
-        radius: player?.bombRadius || 1
-    });
-
+  
+    // Check for existing bombs from this player, but no longer block based on previous bombs
     const bombElement = createElement("div", {
-        class: "bomb",
-        "data-owner": playerId,
-        style: `
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            left: ${x + 5}px;
-            top: ${y + 5}px;
-            background-image: url('/static/img/Bomb.png');
-            background-size: contain;
-            z-index: 1;
-        `
+      class: "bomb",
+      "data-owner": playerId,
+      style: `
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        left: ${x + 5}px;
+        top: ${y + 5}px;
+        background-image: url('/static/img/Bomb.png');
+        background-size: contain;
+        z-index: 1;
+      `
     });
-
-
+  
+    // Send bomb placement to server
+    ws.sendMessage("BOMB_PLACE", {
+      x: x,
+      y: y,
+      owner: playerId,
+      radius: player?.bombRadius || 1
+    });
+  
+    // Set bomb explosion timeout
     setTimeout(() => {
-        if (bombElement.parentNode) {
-            bombElement.classList.add('exploded');
-            bombElement.parentNode.removeChild(bombElement);
-        }
+      if (bombElement.parentNode) {
+        bombElement.classList.add('exploded');
+        bombElement.parentNode.removeChild(bombElement);
+      }
     }, BOMB_COOLDOWN);
-
+  
     moveAfterBombPlacement(playerId);
-
+  
     return bombElement;
-}
+  }
+  
 
 function moveAfterBombPlacement(playerId) {
     const state = store.getState();
