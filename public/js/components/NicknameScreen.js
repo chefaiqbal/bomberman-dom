@@ -3,6 +3,12 @@ import { createElement } from '../core/dom.js';
 export function NicknameScreen({ store, router, ws }) {
     const state = store.getState();
     
+    // Redirect if game in progress
+    if (state.gameInProgress) {
+        router.navigate('/game-in-progress');
+        return null;
+    }
+    
     // If we have an active session and we're reconnecting, go to lobby
     if (state.sessionId && state.isAuthenticated) {
         router.navigate('/lobby');

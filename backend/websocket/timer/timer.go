@@ -3,23 +3,26 @@ package timer
 import (
 	"sync"
 	"time"
+	"bomber/websocket/game"
 )
 
 type GameTimer struct {
-	timeLeft  int
-	isActive  bool
-	phase     string // "WAITING" or "PREGAME"
-	ticker    *time.Ticker
-	mu        sync.Mutex
-	broadcast func(string, interface{})
+	timeLeft      int
+	isActive      bool
+	phase         string // "WAITING" or "PREGAME"
+	ticker        *time.Ticker
+	mu            sync.Mutex
+	broadcast     func(string, interface{})
+	onPhaseChange func(string) // Add callback for phase changes
 }
 
-func NewGameTimer(broadcast func(string, interface{})) *GameTimer {
+func NewGameTimer(broadcast func(string, interface{}), onPhaseChange func(string)) *GameTimer {
 	return &GameTimer{
-		timeLeft:  2, // 5 seconds for each phase
-		isActive:  false,
-		phase:     "WAITING",
-		broadcast: broadcast,
+		timeLeft:      2, // 5 seconds for each phase
+		isActive:      false,
+		phase:         "WAITING",
+		broadcast:     broadcast,
+		onPhaseChange: onPhaseChange,
 	}
 }
 
@@ -51,19 +54,30 @@ func (t *GameTimer) Start() {
 			})
 
 			if timeLeft <= 0 {
-				if phase == "WAITING" {
+				if phase == game.PhaseWaiting {
 					// Transition to pregame phase
 					t.mu.Lock()
 					t.timeLeft = 2
-					t.phase = "PREGAME"
+					t.phase = game.PhasePregame
 					t.mu.Unlock()
 
+					 // Use callback instead of direct access
+					if t.onPhaseChange != nil {
+						t.onPhaseChange(game.PhasePregame)
+					}
+
 					t.broadcast("LOBBY_PHASE_CHANGE", map[string]interface{}{
-						"phase": "PREGAME",
+						"phase": game.PhasePregame,
 					})
 				} else {
 					// End timer and start game
 					t.Stop()
+					
+					// Use callback instead of direct access
+					if t.onPhaseChange != nil {
+						t.onPhaseChange(game.PhaseGame)
+					}
+
 					t.broadcast("GAME_START", map[string]interface{}{
 						"timeLeft": 0,
 						"isActive": false,
@@ -73,6 +87,14 @@ func (t *GameTimer) Start() {
 			}
 		}
 	}()
+
+	if t.phase == game.PhaseGame {
+		// Prevent new connections during game phase
+		t.broadcast("GAME_STATUS", map[string]interface{}{
+			"inProgress": true,
+			"phase": game.PhaseGame,
+		})
+	}
 }
 
 func (t *GameTimer) Stop() {
@@ -90,6 +112,12 @@ func (t *GameTimer) Stop() {
 		"timeLeft": t.timeLeft,
 		"isActive": t.isActive,
 		"phase":    t.phase,
+	})
+
+	// Reset game status when game ends
+	t.broadcast("GAME_STATUS", map[string]interface{}{
+		"inProgress": false,
+		"phase": "WAITING",
 	})
 }
 

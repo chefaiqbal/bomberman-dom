@@ -6,6 +6,7 @@ import { GameBoard } from './components/GameBoard.js';
 import { generateMap } from './game/Map.js';
 import { PreGameLobby } from './components/PreGameLobby.js';
 import { createLoseBanner, createWinBanner } from './components/Banners.js';
+import { GameInProgress } from './components/GameInProgress.js';
 
 const initialState = {
     playerId: Math.random().toString(36).substring(7),
@@ -20,6 +21,7 @@ const initialState = {
     mapGen: false,
     reconnecting: false,
     lobbyPhase: 'WAITING',
+    gameInProgress: false,
 };
 
 export const store = createStore(initialState);
@@ -69,6 +71,9 @@ const router = createRouter({
                 )
             )
         ), appElement);
+    },
+    '/game-in-progress': () => {
+        render(GameInProgress({ store }), appElement); // Add store prop
     }
 });
 

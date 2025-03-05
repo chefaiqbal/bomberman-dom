@@ -157,6 +157,25 @@ export class WebSocketService {
                 case 'PLAYER_LOST':
                     this.handleLostPlayer(data.data);
                     break;    
+                case 'GAME_STATUS':
+                    if (data.data.inProgress) {
+                        this.store.setState({
+                            ...this.store.getState(),
+                            gameInProgress: true,
+                            gamePhase: data.data.phase, // Fix typo: gamePhasee -> gamePhase
+                            gameMessage: data.data.message // Add message to state
+                        });
+                        
+                        // Clear any existing session
+                        localStorage.removeItem('gameSession');
+                        
+                        // Navigate to appropriate screen
+                        this.router.navigate('/game-in-progress');
+                        
+                        // Stop reconnection attempts
+                        this.maxReconnectAttempts = 0;
+                    }
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -254,9 +273,10 @@ export class WebSocketService {
     
     handleChatMessage(msg) {
         const state = this.store.getState();
+        // Update messages regardless of game phase
         this.store.setState({
             ...state,
-            messages: [...state.messages, msg]
+            messages: [...(state.messages || []), msg]
         });
     }
     

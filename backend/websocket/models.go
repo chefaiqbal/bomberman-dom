@@ -57,9 +57,11 @@ type GameMessage struct {
 }
 
 type GameState struct {
-	Players     []Client      `json:"players"`
-	TimeLeft    int           `json:"timeLeft"`
-	IsActive    bool          `json:"isActive"`
+	InProgress  bool        `json:"inProgress"`
+	Phase       string      `json:"phase"`
+	Players     []Client    `json:"players"`
+	TimeLeft    int         `json:"timeLeft"`
+	IsActive    bool        `json:"isActive"`
 	ChatHistory []ChatMessage `json:"chatHistory"`
 	Map         [][]int       `json:"map"`
 	Bombs       []Bomb        `json:"bombs"`
@@ -73,8 +75,10 @@ type Session struct {
 }
 
 type AuthResponse struct {
-	SessionID string `json:"sessionId"`
-	PlayerID  string `json:"playerId"`
+	SessionID   string `json:"sessionId"`
+	PlayerID    string `json:"playerId"`
+	Error       string `json:"error,omitempty"`
+	GameStatus  string `json:"gameStatus,omitempty"`
 }
 
 // Add this to the models
@@ -87,9 +91,9 @@ type ChatHistory struct {
 type Client struct {
 	conn       *websocket.Conn
 	ID         string
-	MaxBombs   int    // Add this
-	BombRadius int    // Add this
-	Speed      int    // Add this
+	MaxBombs   int    
+	BombRadius int    
+	Speed      int    
 }
 
 // Package variables

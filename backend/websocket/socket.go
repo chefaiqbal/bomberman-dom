@@ -16,7 +16,7 @@ var upgrader = websocket.Upgrader{
 
 var lastDamageTime = make(map[string]time.Time)
 
-// Add an init function to clear all state when server starts
+
 func init() {
 	// Clear all maps and states
 	mu.Lock()
@@ -40,7 +40,7 @@ func init() {
 	mapMu.Unlock()
 
 	// Reset game state
-	gameStarted = false
+	GameStarted = false // Update to use GameStarted
 
 	log.Println("Server state initialized")
 }
@@ -53,6 +53,17 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
+		return
+	}
+
+	// Check game state immediately after connection
+	if GameStarted {
+		conn.WriteJSON(map[string]interface{}{
+			"type": "GAME_STATUS",
+			"data": map[string]interface{}{
+				"inProgress": true,
+			},
+		})
 		return
 	}
 
@@ -264,18 +275,37 @@ func handlePlayerLost(msg json.RawMessage) {
 
 
 func HandleChat(msg json.RawMessage) {
-	var chat ChatMessage
-	if err := json.Unmarshal(msg, &chat); err != nil {
-		log.Printf("Failed to unmarshal chat: %v", err)
-		return
-	}
+    var chat ChatMessage
+    if err := json.Unmarshal(msg, &chat); err != nil {
+        log.Printf("Failed to unmarshal chat: %v", err)
+        return
+    }
 
-	// Store the message in history
-	chatHistory.mu.Lock()
-	chatHistory.Messages = append(chatHistory.Messages, chat)
-	chatHistory.mu.Unlock()
+    // Allow chat messages regardless of game phase
+    chatHistory.mu.Lock()
+    chatHistory.Messages = append(chatHistory.Messages, chat)
+    chatHistory.mu.Unlock()
 
-	broadcastMessage("chat", chat)
+    // Broadcast to all connected clients, including waiting clients
+    mu.Lock()
+    message := struct {
+        Type string      `json:"type"`
+        Data ChatMessage `json:"data"`
+    }{
+        Type: "chat",
+        Data: chat,
+    }
+
+    // Send to active clients
+    for _, client := range clients {
+        client.conn.WriteJSON(message)
+    }
+    
+    // Send to waiting clients
+    for _, client := range WaitedClient {
+        client.conn.WriteJSON(message)
+    }
+    mu.Unlock()
 }
 
 func GetChatHistory() []ChatMessage {
@@ -426,6 +456,14 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
 		return &AuthResponse{
 			SessionID: existingSession.ID,
 			PlayerID:  player.ID,
+		}
+	}
+
+	// Check game state before creating new session
+	if GameStarted {
+		return &AuthResponse{
+			Error: "Game in progress",
+			GameStatus: "in_progress",
 		}
 	}
 

@@ -9,16 +9,32 @@ import (
 	//"time"
 
 	"bomber/websocket/timer"
+	"bomber/websocket/game"
 
 	"github.com/gorilla/websocket"
 )
 
-var gameStarted = false
+
 var (
-	gameTimer = timer.NewGameTimer(broadcastMessage)
+	GameStarted bool // Export the variable
+	CurrentPhase = game.PhaseWaiting
+	gameTimer = timer.NewGameTimer(broadcastMessage, handlePhaseChange)
 	activePowerUps = make(map[string]*PowerUp) // key is "x,y"
 	powerUpMu      sync.RWMutex
 )
+
+// Add phase change handler
+func handlePhaseChange(newPhase string) {
+    CurrentPhase = newPhase
+    if newPhase == game.PhaseGame {
+        GameStarted = true
+    }
+}
+
+func init() {
+    // Initialize the timer with phase change handler
+    gameTimer = timer.NewGameTimer(broadcastMessage, handlePhaseChange)
+}
 
 func Mapping(msg json.RawMessage) {
 	var data struct {
@@ -39,12 +55,14 @@ func Mapping(msg json.RawMessage) {
 }
 
 func GameStart() {
-	gameStarted = true
-	// No need to send another GAME_START message here as timer already sends it
+	GameStarted = true
+	CurrentPhase = game.PhaseGame
+
 }
 
 func GameDone() {
-	gameStarted = false
+	GameStarted = false
+	CurrentPhase = game.PhaseWaiting
 
 	mu.Lock()
 
@@ -102,13 +120,17 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 	}
 
 	mu.Lock()
-	if gameStarted {
+	if CurrentPhase != game.PhaseWaiting {
 		mu.Unlock()
-		(*WaitedClient)[player.ID] = &Client{
-			conn: conn,
-			ID:   player.ID,
-		}
-		sendWaitResponse(conn)
+		// Send game status to client
+		conn.WriteJSON(map[string]interface{}{
+			"type": "GAME_STATUS",
+			"data": map[string]interface{}{
+				"inProgress": true,
+				"phase": CurrentPhase,
+				"message": "Cannot join: Game is in pregame or active phase",
+			},
+		})
 		return
 	}
 
@@ -146,7 +168,7 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 	broadcastMessage("PLAYER_JOIN", clientList)
 
 	// Start timer if needed
-	if len(*clients) >= 2 && !gameTimer.GetState()["isActive"].(bool) && !gameStarted {
+	if len(*clients) >= 2 && !gameTimer.GetState()["isActive"].(bool) && !GameStarted {
 		go gameTimer.Start()
 	}
 }
