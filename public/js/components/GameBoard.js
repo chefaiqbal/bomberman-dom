@@ -20,6 +20,9 @@ function createPlayerList(players, store, ID) {
                 players.map(player => {
                     const playerState = state.players.find(p => p.ID === player.name);
                     const lives = playerState ? playerState.lives : 3;
+                    if (playerState) {
+                        playerState.MaxBombs = 1;
+                    }
                     return createElement('div',
                         {
                             class: 'player-row',
@@ -48,7 +51,7 @@ function createPlayerList(players, store, ID) {
                             )
                         ]
                     );
-                })
+                })                
             );
 
             const existingElement = document.querySelector('.player-list');

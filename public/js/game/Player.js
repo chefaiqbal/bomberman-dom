@@ -1,4 +1,4 @@
-import { createElement, render, createStore, addEvent,triggerEvent } from "../core/index.js";
+import { createElement, render, createStore, addEvent} from "../core/index.js";
 import { ws, store } from "../app.js"; 
 import { createExplosion } from "./Bomb.js";
 
@@ -203,8 +203,12 @@ function handleKeyDown(e) {
       const playerState = playerStores[playerID].getState();
       const player = states.players.find(p => p.ID === playerID);
       const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
-      const maxBombs = player?.maxBombs || 1;
-      
+      const maxBombs = player?.MaxBombs;
+
+    
+      console.log("max bombsss: " ,maxBombs);
+      console.log("playyyyyr, ", player);
+
       if (activeBombs.length < maxBombs) {
         const bombElement = placeBomb(playerState.x, playerState.y, playerID);
         if (bombElement) {
@@ -223,7 +227,6 @@ function handleKeyDown(e) {
 function placeBomb(x, y, playerId) {
     const state = store.getState();
     const player = state.players.find(p => p.ID === playerId);
-    
     if (detectCollision(x, y, playerId)) {
         console.log("Cannot place bomb at this position due to collision.");
         return null;  
@@ -258,7 +261,6 @@ function placeBomb(x, y, playerId) {
         `
     });
 
-    document.body.appendChild(bombElement);
 
     setTimeout(() => {
         if (bombElement.parentNode) {
@@ -394,7 +396,7 @@ function updatePlayerPose() {
                                 y: player.y,
                                 moving: false,     
                                 direction: directions[player.direction],
-                                frameIndex: (player.frameIndex + 1) % 3
+                                frameIndex: (player.frameIndex + 1) % 3,
                             });
                             updateCharacter(player.ID);  
                         } else {
