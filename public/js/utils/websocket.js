@@ -541,33 +541,41 @@ export class WebSocketService {
 
     handlePowerUpCollected(powerUpData) {
         const currentState = this.store.getState();
-        
+        console.log("Current state before update:", currentState);
+        console.log("Power-up data:", powerUpData);
+    
         const updatedPlayers = currentState.players.map(player => {
             if (player.ID === powerUpData.playerID) {
-                console.log("Before power-up:", player);
+                console.log("Player matched for power-up:", player);
     
-                if (powerUpData.type === 'bomb') {
-                    player.MaxBombs = (player.MaxBombs || 0) + 1;  // Increase MaxBombs by 1
-                } else if (powerUpData.type === 'flame') {
-                    player.bombRadius = (player.bombRadius || 0) + 1;  // Increase bombRadius by 1
-                } else if (powerUpData.type === 'speed') {
-                    player.speed = (player.speed || 5) + 1;  // Increase speed by 1
-                }
+                const updatedPlayer = { ...player };
     
-                console.log(`Updated player stats after power-up:`, player);  
-                return player;  
+                const newPlayerState = {
+                    ...updatedPlayer,
+                    MaxBombs: powerUpData.type === 'bomb' && !updatedPlayer.collectedPowerUps?.includes('bomb') ? (updatedPlayer.MaxBombs || 0) + 1 : updatedPlayer.MaxBombs,
+                    BombRadius: powerUpData.type === 'flame' && !updatedPlayer.collectedPowerUps?.includes('flame') ? (updatedPlayer.BombRadius || 0) + 1 : updatedPlayer.BombRadius,
+                    Speed: powerUpData.type === 'speed' && !updatedPlayer.collectedPowerUps?.includes('speed') ? (updatedPlayer.Speed || 5) + 1 : updatedPlayer.Speed,
+                };
+    
+                console.log("Updated player stats after power-up:", newPlayerState);
+                return newPlayerState; 
             }
-            
-            return player;
+            return player; 
         });
     
-        this.store.setState({
-            ...currentState,  
-            players: updatedPlayers, 
-        });
+        if (JSON.stringify(currentState.players) !== JSON.stringify(updatedPlayers)) {
+            this.store.setState({
+                ...currentState,
+                players: updatedPlayers,
+            });
     
-        console.log("State after update:", this.store.getState());
+            console.log("State immediately after setState:", this.store.getState());
+        } else {
+            console.log("No changes detected in player state, skipping setState.");
+        }
     }
+    
+    
     
     
     handleLostPlayer(lostPlayerData) {

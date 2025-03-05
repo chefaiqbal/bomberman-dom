@@ -203,7 +203,7 @@ function handleKeyDown(e) {
       const playerState = playerStores[playerID].getState();
       const player = states.players.find(p => p.ID === playerID);
       const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
-      const maxBombs = player?.MaxBombs;
+      const maxBombs = player?.MaxBombs || 1
 
     
       console.log("max bombsss: " ,maxBombs);
