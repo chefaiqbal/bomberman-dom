@@ -50,9 +50,10 @@ const router = createRouter({
         }
     },
     '/lose': () => {
-        render(createLoseBanner(), appElement);
-    },'/win': () => {
-        render(createWinBanner(), appElement);
+        render(createLoseBanner({ store, router }), appElement);
+    },
+    '/win': () => {
+        render(createWinBanner({ store, router }), appElement);
     },
     '/game': () => {
         const state = store.getState();

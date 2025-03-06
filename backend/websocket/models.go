@@ -79,6 +79,7 @@ type AuthResponse struct {
 	PlayerID    string `json:"playerId"`
 	Error       string `json:"error,omitempty"`
 	GameStatus  string `json:"gameStatus,omitempty"`
+	Phase       string `json:"phase,omitempty"`  // Add this field
 }
 
 // Add this to the models

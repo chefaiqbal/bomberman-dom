@@ -2,11 +2,10 @@ package bomber
 
 import (
 	"encoding/json"
-	//"fmt"
 	"log"
 	"math/rand"
 	"sync"
-	//"time"
+	"time"  // Add this import
 
 	"bomber/websocket/timer"
 	"bomber/websocket/game"
@@ -32,8 +31,12 @@ func handlePhaseChange(newPhase string) {
 }
 
 func init() {
-    // Initialize the timer with phase change handler
+    // Reset game state on server start
+    GameStarted = false
+    CurrentPhase = game.PhaseWaiting
     gameTimer = timer.NewGameTimer(broadcastMessage, handlePhaseChange)
+    log.Printf("Game initialized with phase: %s", CurrentPhase)
+    GameDone() // Ensure clean state on startup
 }
 
 func Mapping(msg json.RawMessage) {
@@ -61,28 +64,51 @@ func GameStart() {
 }
 
 func GameDone() {
-	GameStarted = false
-	CurrentPhase = game.PhaseWaiting
+    // Reset game state
+    GameStarted = false
+    CurrentPhase = game.PhaseWaiting
 
-	mu.Lock()
+    mu.Lock()
+    // Clear all existing clients and sessions
+    clients = make(map[string]*Client)
+    WaitedClient = make(map[string]*Client)
 
-	for id := range clients {
-		delete(clients, id)
-	}
+    // Clear sessions
+    sessionMu.Lock()
+    sessions = make(map[string]*Session)
+    sessionMu.Unlock()
 
-	counter := 0
-	for id, w := range WaitedClient {
-		if counter <= 4 {
-			clients[id] = w
-			delete(WaitedClient, id)
-			counter++
-		} else {
-			break
-		}
-	}
-	mu.Unlock()
+    // Clear chat history
+    chatHistory.mu.Lock()
+    chatHistory.Messages = make([]ChatMessage, 0)
+    chatHistory.mu.Unlock()
 
-	broadcastMessage("Waiting_Join", clients)
+    // Clear map and power-ups
+    mapMu.Lock()
+    currentMap = nil
+    mapMu.Unlock()
+
+    powerUpMu.Lock()
+    activePowerUps = make(map[string]*PowerUp)
+    powerUpMu.Unlock()
+
+    // Clear active bombs
+    bombMu.Lock()
+    activeBombs = make([]Bomb, 0)
+    bombMu.Unlock()
+
+    mu.Unlock()
+
+    // Reset last damage times
+    lastDamageTime = make(map[string]time.Time)
+
+    log.Printf("Game fully reset, new phase: %s", CurrentPhase)
+
+    // Broadcast game reset to all connections
+    broadcastMessage("GAME_RESET", map[string]interface{}{
+        "status": "reset",
+        "phase":  game.PhaseWaiting,
+    })
 }
 
 func sendWaitResponse(conn *websocket.Conn) {

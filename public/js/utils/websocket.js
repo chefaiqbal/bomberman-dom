@@ -176,6 +176,13 @@ export class WebSocketService {
                         this.maxReconnectAttempts = 0;
                     }
                     break;
+                case 'GAME_RESET':
+                    this.clearSession();
+                    window.location.reload(); // Force complete refresh
+                    break;
+                case 'GAME_WINNER':
+                    this.handleGameWinner(data.data);
+                    break;
                 default:
                     console.warn("Unknown message type:", data.type);
             }
@@ -184,11 +191,14 @@ export class WebSocketService {
     
     sendMessage(type, payload) {
         if (this.ws.readyState === WebSocket.OPEN) {
+            console.log("Sending message:", type, payload);
             const message = {
                 msgType: type.toUpperCase(),
                 msg: payload
             };
             this.ws.send(JSON.stringify(message));
+        } else {
+            console.error("WebSocket is not open. Current state:", this.ws.readyState);
         }
     }
 
@@ -205,6 +215,11 @@ export class WebSocketService {
                     this.sendMessage('PLAYER_LOST', { playerID: ID.ID });
                         if (player.ID === this.store.getState().playerName) {
                         this.router.navigate('/lose');
+                        // Clear session after 5 seconds
+                        setTimeout(() => {
+                            this.clearSession();
+                            this.router.navigate('/');
+                        }, 5000);
                     }
                 }
     
@@ -233,6 +248,11 @@ export class WebSocketService {
             // Navigate the winning player to the win route
             if (winner.ID === this.store.getState().playerName) {
                 this.router.navigate('/win');
+                // Clear session after 5 seconds
+                setTimeout(() => {
+                    this.clearSession();
+                    this.router.navigate('/');
+                }, 5000);
             }
         }
     }
@@ -272,11 +292,13 @@ export class WebSocketService {
     }    
     
     handleChatMessage(msg) {
+        console.log("Received chat message:", msg);
         const state = this.store.getState();
-        // Update messages regardless of game phase
+        const messages = [...(state.messages || []), msg];
+        
         this.store.setState({
             ...state,
-            messages: [...(state.messages || []), msg]
+            messages
         });
     }
     
@@ -360,6 +382,24 @@ export class WebSocketService {
     }
     
     handleAuthResponse(data) {
+        console.log("Auth response:", data);
+        
+        if (data.error) {
+            console.log("Auth error:", data.error);
+            if (data.gameStatus === "in_progress") {
+                this.store.setState({
+                    ...this.store.getState(),
+                    gameInProgress: true,
+                    gamePhase: data.phase || "GAME",
+                    gameMessage: data.message || "Game in progress"
+                });
+                this.router.navigate('/game-in-progress');
+                return;
+            }
+            this.clearSession();
+            return;
+        }
+
         if (data.sessionId && data.playerId) {
             // Reset reconnect attempts on successful auth
             this.reconnectAttempts = 0;
@@ -615,6 +655,23 @@ export class WebSocketService {
         }
     
         console.log(`Player ${lostPlayerData.playerID} has been removed from the game.`);
+    }
+
+    handleGameWinner(data) {
+        console.log("Game winner:", data);
+        const state = this.store.getState();
+        
+        if (data.playerID === state.playerName) {
+            this.router.navigate('/win');
+        } else {
+            this.router.navigate('/lose');
+        }
+
+        // Clear session after 5 seconds
+        setTimeout(() => {
+            this.clearSession();
+            this.router.navigate('/');
+        }, 5000);
     }
 
 }

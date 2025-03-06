@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"bomber/websocket/game"
 )
 
 var upgrader = websocket.Upgrader{
@@ -57,11 +58,13 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check game state immediately after connection
-	if GameStarted {
+	if CurrentPhase != game.PhaseWaiting {
 		conn.WriteJSON(map[string]interface{}{
 			"type": "GAME_STATUS",
 			"data": map[string]interface{}{
 				"inProgress": true,
+				"phase": CurrentPhase,
+				"message": "Game is in progress, please wait for the next round",
 			},
 		})
 		return
@@ -199,9 +202,37 @@ func HandelMsg(p []byte, conn *websocket.Conn) {
 		handelTakeDmg(msg.Msg);
 	case "PLAYER_LOST": 
 		handlePlayerLost(msg.Msg);
+	case "PLAYER_WON":
+		handlePlayerWon(msg.Msg)
 	default:
 		log.Printf("Unknown message type: %v", msg.MsgType)
 	}
+}
+
+func handlePlayerWon(msg json.RawMessage) {
+    var playerID struct {
+        PlayerID string `json:"playerID"`
+    }
+    if err := json.Unmarshal(msg, &playerID); err != nil {
+        log.Printf("Failed to unmarshal winner ID: %v", err)
+        return
+    }
+
+    log.Printf("Player won: %s", playerID.PlayerID)
+
+    // Start ending phase
+    gameTimer.StartEndingPhase()
+
+    // Broadcast winner
+    broadcastMessage("GAME_WINNER", map[string]interface{}{
+        "playerID": playerID.PlayerID,
+        "message": "Game Over - Winner!",
+    })
+
+    // Schedule game reset
+    time.AfterFunc(5*time.Second, func() {
+        GameDone()
+    })
 }
 
 func broadcastMessage(msgType string, payload interface{}) {
@@ -426,54 +457,64 @@ func HandleBomb(msg json.RawMessage) {
 
 
 func HandleAuth(msg json.RawMessage) *AuthResponse {
-	var player Player
-	if err := json.Unmarshal(msg, &player); err != nil {
-		return nil
-	}
+    // Add debug logging
+    log.Printf("Current game phase: %s", CurrentPhase)
 
-	sessionMu.RLock()
-	// Check for existing session
-	var existingSession *Session
-	for _, session := range sessions {
-		if session.PlayerID == player.ID {
-			existingSession = session
-			break
-		}
-	}
-	sessionMu.RUnlock()
+    var player Player
+    if err := json.Unmarshal(msg, &player); err != nil {
+        return nil
+    }
 
-	// If player has existing session, validate and reconnect
-	if existingSession != nil {
-		mu.Lock()
-		// Update client connection if exists
-		if oldClient, exists := clients[player.ID]; exists {
-			oldClient.conn.Close() // Close old connection
-			delete(clients, player.ID)
-		}
-		mu.Unlock()
+    // Check game phase first
+    if CurrentPhase != game.PhaseWaiting {
+        log.Printf("Rejecting auth - game phase is: %s", CurrentPhase)
+        return &AuthResponse{
+            Error:      "Game in progress",
+            GameStatus: "in_progress",
+            Phase:      CurrentPhase,
+        }
+    }
 
-		// Return existing session
-		return &AuthResponse{
-			SessionID: existingSession.ID,
-			PlayerID:  player.ID,
-		}
-	}
+    sessionMu.RLock()
+    // Check for existing session
+    var existingSession *Session
+    for _, session := range sessions {
+        if session.PlayerID == player.ID {
+            existingSession = session
+            break
+        }
+    }
+    sessionMu.RUnlock()
 
-	// Check game state before creating new session
-	if GameStarted {
-		return &AuthResponse{
-			Error: "Game in progress",
-			GameStatus: "in_progress",
-		}
-	}
+    // If player has existing session, validate and reconnect
+    if existingSession != nil {
+        mu.Lock()
+        if oldClient, exists := clients[player.ID]; exists {
+            oldClient.conn.Close()
+            delete(clients, player.ID)
+        }
+        mu.Unlock()
+        return &AuthResponse{
+            SessionID: existingSession.ID,
+            PlayerID:  player.ID,
+        }
+    }
 
-	// Create new session for new player
-	session := CreateSession(player.ID)
-	return &AuthResponse{
-		SessionID: session.ID,
-		PlayerID:  player.ID,
-	}
+    // Create new session for new player
+    session := CreateSession(player.ID)
+    if session == nil {
+        return &AuthResponse{
+            Error: "Cannot create session",
+            GameStatus: "error",
+        }
+    }
+
+    return &AuthResponse{
+        SessionID: session.ID,
+        PlayerID:  player.ID,
+    }
 }
+
 
 func HandlePowerUp(msg json.RawMessage) {
 	var powerUp PowerUp

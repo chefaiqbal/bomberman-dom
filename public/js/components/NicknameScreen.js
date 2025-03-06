@@ -31,7 +31,13 @@ export function NicknameScreen({ store, router, ws }) {
 
     function handleSubmit(e) {
         e.preventDefault();
-        const nickname = e.target.elements.nickname.value.trim();
+        const nicknameInput = e.target.querySelector('input[name="nickname"]');
+        if (!nicknameInput) {
+            console.error('Nickname input not found');
+            return;
+        }
+        
+        const nickname = nicknameInput.value.trim();
         
         if (nickname.length >= 3 && nickname.length <= 15) {
             store.setState({

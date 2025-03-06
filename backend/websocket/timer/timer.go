@@ -69,15 +69,11 @@ func (t *GameTimer) Start() {
 					t.broadcast("LOBBY_PHASE_CHANGE", map[string]interface{}{
 						"phase": game.PhasePregame,
 					})
-				} else {
-					// End timer and start game
+				} else if phase == game.PhasePregame {
 					t.Stop()
-					
-					// Use callback instead of direct access
 					if t.onPhaseChange != nil {
 						t.onPhaseChange(game.PhaseGame)
 					}
-
 					t.broadcast("GAME_START", map[string]interface{}{
 						"timeLeft": 0,
 						"isActive": false,
@@ -95,6 +91,35 @@ func (t *GameTimer) Start() {
 			"phase": game.PhaseGame,
 		})
 	}
+}
+
+func (t *GameTimer) StartEndingPhase() {
+	t.mu.Lock()
+	t.phase = game.PhaseEnding
+	t.timeLeft = 5  // 5 seconds before reset
+	t.isActive = true
+	t.mu.Unlock()
+
+	t.ticker = time.NewTicker(1 * time.Second)
+	go func() {
+		for range t.ticker.C {
+			t.mu.Lock()
+			t.timeLeft--
+			timeLeft := t.timeLeft
+			t.mu.Unlock()
+
+			if timeLeft <= 0 {
+				t.Stop()
+				if t.onPhaseChange != nil {
+					t.onPhaseChange(game.PhaseWaiting)
+				}
+				t.broadcast("GAME_RESET", map[string]interface{}{
+					"message": "Game ended, resetting to lobby",
+				})
+				break
+			}
+		}
+	}()
 }
 
 func (t *GameTimer) Stop() {
