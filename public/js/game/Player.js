@@ -95,14 +95,21 @@ export function renderPlayer() {
     console.log('Sorted Players:', players);
 
     return players.map((player, index) => {
-        const posIndex = index % startPositions.length; 
+        const posIndex = index % startPositions.length;
         const { x, y, color } = startPositions[posIndex];
 
-        if (!playerStores[player.ID]) {
-            createPlayerStore(player.ID, x, y);
+        // Add x and y to player if not already added
+        if (!player.x || !player.y) {
+            player.x = x;
+            player.y = y;
         }
 
-        console.log(`Player ${player.ID} assigned position: ${x}, ${y}`); 
+        // Initialize player store if not already done
+        if (!playerStores[player.ID]) {
+            createPlayerStore(player.ID, player.x, player.y);
+        }
+
+        console.log(`Player ${player.ID} assigned position: ${player.x}, ${player.y}`);
 
         return createElement("div", {
             class: "player",
@@ -111,8 +118,8 @@ export function renderPlayer() {
                 position: absolute;
                 width: ${frameWidth}px;
                 height: ${frameHeight}px;
-                left: ${x}px;
-                top: ${y}px;
+                left: ${player.x}px;
+                top: ${player.y}px;
                 background-image: url('/static/img/${color}.png');
                 background-size: 150px 200px;
                 background-repeat: no-repeat;
@@ -120,6 +127,8 @@ export function renderPlayer() {
         });
     });
 }
+
+
 function gameLoop() {
     Object.keys(playerStores).forEach(playerID => {
         const state = playerStores[playerID].getState();
