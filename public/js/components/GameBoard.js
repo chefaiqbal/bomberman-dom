@@ -1,4 +1,3 @@
-
 import { createElement, render } from "../core/dom.js";
 import { renderMap } from "../game/Map.js";
 import { Chat } from './Chat.js';
@@ -68,18 +67,9 @@ function createPlayerList(players, store, ID) {
     });
 }
 
+// Removed the entire createTimer function here
 
-
-function createTimer() {
-    return createElement(
-        'div',
-        {
-            class: 'timer',
-            style: 'position: absolute; right: 100px; top: 20px; color: white; font-size: 24px;'
-        },
-        '01:00'
-    );
-}function createPlayerLives(ID, store) {
+function createPlayerLives(ID, store) {
     let previousLives = null; 
 
     const updatePlayerLives = () => {
@@ -124,10 +114,6 @@ function createTimer() {
     });
 }
 
-
-
-
-
 export function GameBoard({ store, router, ws }) {
     const state = store.getState();
     let chatVisible = false;
@@ -170,7 +156,7 @@ export function GameBoard({ store, router, ws }) {
             ),
             createPlayerList(players, store, state.playerName),
             KeyToPlay(),
-            createTimer(),
+            // Timer removed from here
             createElement('img', {
                 src: '/static/img/chatlogo.png',
                 alt: 'Chat',
@@ -188,7 +174,6 @@ export function GameBoard({ store, router, ws }) {
         ]
     );
 }
-
 
 function KeyToPlay() {
     return createElement(
