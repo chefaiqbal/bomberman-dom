@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"sync"
 	"time"  // Add this import
-
+	"fmt"
 	"bomber/websocket/timer"
 	"bomber/websocket/game"
 
@@ -162,9 +162,11 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 
 	// Update client connection
 	(*clients)[player.ID] = &Client{
-		conn:     conn,
-		ID:       player.ID,
-		MaxBombs: 1, // Initialize with 1 bomb
+		conn:       conn,
+		ID:         player.ID,
+		MaxBombs:   1,    // Initial values
+		BombRadius: 2,    // Initial values
+		Speed:      5,    // Initial values
 	}
 
 	// Send current game state to the reconnected player
@@ -213,39 +215,56 @@ func spawnPowerUp(x, y int) {
 		Type: powerUpTypes[rand.Intn(len(powerUpTypes))],
 	}
 
+	powerUpMu.Lock()
+	activePowerUps[fmt.Sprintf("%d,%d", x, y)] = powerUp
+	powerUpMu.Unlock()
+
 	// Broadcast power-up spawn
 	broadcastMessage("POWER_UP", powerUp)
 }
 
 func calculateDestroyedBlocks(x, y, radius int) []struct{ X, Y int } {
-	var destroyed []struct{ X, Y int }
-	directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+    var destroyed []struct{ X, Y int }
+    directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
 
-	mapMu.RLock()
-	defer mapMu.RUnlock()
+    mapMu.RLock()
+    defer mapMu.RUnlock()
 
-	for _, dir := range directions {
-		for i := 0; i <= radius; i++ {
-			newX := x/50 + (dir[0] * i)
-			newY := y/50 + (dir[1] * i)
+    // Create a copy of the current map state
+    mapCopy := make([][]int, len(currentMap))
+    for i := range currentMap {
+        mapCopy[i] = make([]int, len(currentMap[i]))
+        copy(mapCopy[i], currentMap[i])
+    }
 
-			if newX < 0 || newY < 0 || newX >= len(currentMap[0]) || newY >= len(currentMap) {
-				break
-			}
+    for _, dir := range directions {
+        for i := 0; i <= radius; i++ {
+            newX := x/50 + (dir[0] * i)
+            newY := y/50 + (dir[1] * i)
 
-			if currentMap[newY][newX] == 1 {
-				break
-			}
+            if newX < 0 || newY < 0 || newX >= len(mapCopy[0]) || newY >= len(mapCopy) {
+                break
+            }
 
-			if currentMap[newY][newX] == 2 {
-				destroyed = append(destroyed, struct{ X, Y int }{newX, newY})
-				currentMap[newY][newX] = 0
-				// Spawn power-up when block is destroyed
-				go spawnPowerUp(newX*50+20, newY*50+20)
-				break
-			}
-		}
-	}
+            // Stop at solid walls
+            if mapCopy[newY][newX] == 1 {
+                break
+            }
 
-	return destroyed
+            // Handle destructible walls
+            if mapCopy[newY][newX] == 2 {
+                destroyed = append(destroyed, struct{ X, Y int }{newX, newY})
+                mapCopy[newY][newX] = 0 // Update the copy
+                go spawnPowerUp(newX*50+20, newY*50+20)
+                break // Stop explosion in this direction after destroying the wall
+            }
+        }
+    }
+
+    // Update the actual map with destroyed blocks
+    for _, d := range destroyed {
+        currentMap[d.Y][d.X] = 0
+    }
+
+    return destroyed
 }

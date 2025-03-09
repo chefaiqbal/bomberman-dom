@@ -159,6 +159,10 @@ function handleKeyDown(e) {
     const states = store.getState();
     const playerID = states.playerName;
     if (!playerStores[playerID]) return;
+
+    // Get current player stats from the store
+    const currentPlayer = states.players.find(p => p.ID === playerID);
+    const currentSpeed = currentPlayer?.speed || 5;
   
     if (e.key in directions) {
       if (!keyStates[e.key]) {
@@ -175,7 +179,7 @@ function handleKeyDown(e) {
     const currentTime = Date.now();
     const player = states.players.find(p => p.ID === playerID);
     const speedMultiplier = (player?.speed || 5) / 5; 
-    const effectiveCooldown = MOVEMENT_COOLDOWN / speedMultiplier;
+    const effectiveCooldown = MOVEMENT_COOLDOWN / (currentSpeed / 5); // Adjust cooldown based on speed
   
     if (!isInitialKeypress && currentTime - lastMoveTime < effectiveCooldown) return;
   
@@ -213,6 +217,7 @@ function handleKeyDown(e) {
         const player = states.players.find(p => p.ID === playerID);
         const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
         const maxBombs = player?.MaxBombs || 1;
+        const bombRadius = player?.bombRadius || 2;
       
         console.log("max bombsss: ", maxBombs);
       

@@ -456,101 +456,139 @@ export class WebSocketService {
         mapElement.appendChild(bombElement);
     }
     handleBombExplode(explosionData) {
-        try {
-            const EXPLOSION_DURATION = 1000;
-            console.log('Handling bomb explosion:', explosionData);
-            const { BombX, BombY, Radius, Destroyed } = explosionData;
-    
-            // Remove existing bomb element
-            const bombs = document.querySelectorAll('.bomb');
-            bombs.forEach(bomb => {
-                const bombX = parseInt(bomb.style.left) - 5;
-                const bombY = parseInt(bomb.style.top) - 5;
-                if (bombX === BombX && bombY === BombY) {
-                    bomb.remove();
-                }
-            });
-    
-            // Get map element
-            const mapElement = document.querySelector(".map");
-            if (!mapElement) {
-                console.error('Map element not found');
-                return;
+    try {
+        const EXPLOSION_DURATION = 1000;
+        const { BombX, BombY, Radius, Destroyed } = explosionData;
+        
+        // Remove bomb element
+        const bombs = document.querySelectorAll('.bomb');
+        bombs.forEach(bomb => {
+            const bombX = parseInt(bomb.style.left) - 5;
+            const bombY = parseInt(bomb.style.top) - 5;
+            if (bombX === BombX && bombY === BombY) {
+                bomb.remove();
             }
-    
-            // Handle destroyed tiles
-            Destroyed.forEach(({X, Y}) => {
-                const tileElement = mapElement.children[Y * 15 + X];
-                if (tileElement) {
-                    tileElement.style.background = 'green';
-                    console.log(`Tile at (${X}, ${Y}) destroyed.`);
-                    spawnPowerUp(X, Y, this);
+        });
+
+        const mapElement = document.querySelector(".map");
+        if (!mapElement) return;
+
+        const map = this.store.getState().map;
+        const explosionTiles = new Set();
+        const directions = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
+
+        // Handle destroyed tiles first
+        Destroyed.forEach(({X, Y}) => {
+            const tileElement = mapElement.children[Y * 15 + X];
+            if (tileElement) {
+                tileElement.style.background = 'green';
+                spawnPowerUp(X, Y, this);
+            }
+        });
+
+        // Process explosions direction by direction
+        directions.forEach(([dx, dy]) => {
+            let blockedPath = false;
+            for (let i = 0; i <= Radius && !blockedPath; i++) {
+                const tileX = Math.floor((BombX + (dx * i * 50)) / 50);
+                const tileY = Math.floor((BombY + (dy * i * 50)) / 50);
+
+                // Stop if we hit a solid wall
+                if (map?.[tileY]?.[tileX] === 1) {
+                    blockedPath = true;
+                    break;
                 }
-            });
-    
-            // Create explosion animations for each tile in the radius
-            const directions = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
-            directions.forEach(([dx, dy]) => {
-                for (let i = 0; i <= Radius; i++) {
-                    const explosionX = BombX + (dx * i * 50);
-                    const explosionY = BombY + (dy * i * 50);
-    
-                    const tileX = Math.floor(explosionX / 50);
-                    const tileY = Math.floor(explosionY / 50);
-                    const map = this.store.getState().map;
-    
-                    if (map && map[tileY] && (map[tileY][tileX] === 1)) {
-                        break;
+
+                // Check for destructible wall
+                if (map?.[tileY]?.[tileX] === 2) {
+                    const wasDestroyed = Destroyed.some(d => d.X === tileX && d.Y === tileY);
+                    if (wasDestroyed) {
+                        explosionTiles.add(`${tileX},${tileY}`);
+                        this.createExplosionAnimation(BombX + (dx * i * 50), BombY + (dy * i * 50), mapElement);
                     }
-    
-                    const explosion = document.createElement('div');
-                    explosion.className = 'explosion';
-                    Object.assign(explosion.style, {
-                        position: 'absolute',
-                        width: '94px',
-                        height: '94px',
-                        left: (explosionX - 47 + 25) + 'px',
-                        top: (explosionY - 47 + 25) + 'px',
-                        backgroundImage: `url('/static/img/explosion1.png')`,
-                        backgroundSize: 'contain',
-                        backgroundRepeat: 'no-repeat',
-                        zIndex: '2'
-                    });
-    
-                    let frame = 0;
-                    const animate = setInterval(() => {
-                        if (frame >= 5) {
-                            clearInterval(animate);
-                            explosion.remove();
-                            return;
-                        }
-                        explosion.style.backgroundImage = `url('/static/img/explosion${frame + 1}.png')`;
-                        frame++;
-                    }, EXPLOSION_DURATION / 5);
-    
-                    mapElement.appendChild(explosion);
+                    blockedPath = true;
+                    break;
                 }
-            });
-    
-            const players = this.store.getState().players;
-            players.forEach(player => {
-                const { x, y, ID } = player;
-                const playerTileX = Math.floor(x / 50);
-                const playerTileY = Math.floor(y / 50);
-    
-                console.log(`Checking player ${ID} at (${playerTileX}, ${playerTileY})`);
-    
-                if (
-                    (Math.abs(playerTileX - Math.floor(BombX / 50)) + Math.abs(playerTileY - Math.floor(BombY / 50)) <= Radius)
-                ) {
-                    console.log(`Player ${ID} hit by explosion!`);
-                    this.PlayerHit(ID);
-                }
-            });
-        } catch (error) {
-            console.error('Error in handleBombExplode:', error);
-        }
+
+                // Add explosion tile and create animation
+                explosionTiles.add(`${tileX},${tileY}`);
+                const explosion = document.createElement('div');
+                explosion.className = 'explosion';
+                Object.assign(explosion.style, {
+                    position: 'absolute',
+                    width: '94px',
+                    height: '94px',
+                    left: (BombX + (dx * i * 50) - 47 + 25) + 'px',
+                    top: (BombY + (dy * i * 50) - 47 + 25) + 'px',
+                    backgroundImage: `url('/static/img/explosion1.png')`,
+                    backgroundSize: 'contain',
+                    backgroundRepeat: 'no-repeat',
+                    zIndex: '2'
+                });
+
+                let frame = 0;
+                const animate = setInterval(() => {
+                    if (frame >= 5) {
+                        clearInterval(animate);
+                        explosion.remove();
+                        return;
+                    }
+                    explosion.style.backgroundImage = `url('/static/img/explosion${frame + 1}.png')`;
+                    frame++;
+                }, EXPLOSION_DURATION / 5);
+
+                mapElement.appendChild(explosion);
+            }
+        });
+
+        // Check for player damage
+        const players = this.store.getState().players;
+        players.forEach(player => {
+            const playerTileX = Math.floor(player.x / 50);
+            const playerTileY = Math.floor(player.y / 50);
+            const playerTileKey = `${playerTileX},${playerTileY}`;
+
+            if (explosionTiles.has(playerTileKey)) {
+                console.log(`Player ${player.ID} hit by explosion at tile ${playerTileKey}!`);
+                this.PlayerHit(player.ID);
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in handleBombExplode:', error);
     }
+}
+
+// Add this helper method to the WebSocketService class
+createExplosionAnimation(x, y, mapElement) {
+    const explosion = document.createElement('div');
+    explosion.className = 'explosion';
+    Object.assign(explosion.style, {
+        position: 'absolute',
+        width: '94px',
+        height: '94px',
+        left: (x - 47 + 25) + 'px',
+        top: (y - 47 + 25) + 'px',
+        backgroundImage: `url('/static/img/explosion1.png')`,
+        backgroundSize: 'contain',
+        backgroundRepeat: 'no-repeat',
+        zIndex: '2'
+    });
+
+    let frame = 0;
+    const animate = setInterval(() => {
+        if (frame >= 5) {
+            clearInterval(animate);
+            explosion.remove();
+            return;
+        }
+        explosion.style.backgroundImage = `url('/static/img/explosion${frame + 1}.png')`;
+        frame++;
+    }, 1000 / 5);
+
+    mapElement.appendChild(explosion);
+}
+
     
     PlayerHit(ID) {
         this.sendMessage("TAKE_DMG", {ID: ID});
@@ -600,39 +638,39 @@ export class WebSocketService {
     }
 
     handlePowerUpCollected(powerUpData) {
+        console.log("Power-up collected data:", powerUpData);
         const currentState = this.store.getState();
-        console.log("Current state before update:", currentState);
-        console.log("Power-up data:", powerUpData);
-
+        
         const updatedPlayers = currentState.players.map(player => {
             if (player.ID === powerUpData.playerID) {
-                console.log("Player matched for power-up:", player);
-
-                const updatedPlayer = { ...player };
-
-                const newPlayerState = {
-                    ...updatedPlayer,
-                    MaxBombs: powerUpData.type === 'bomb' && !updatedPlayer.collectedPowerUps?.includes('bomb') ? (updatedPlayer.MaxBombs || 0) + 1 : updatedPlayer.MaxBombs,
-                    BombRadius: powerUpData.type === 'flame' && !updatedPlayer.collectedPowerUps?.includes('flame') ? (updatedPlayer.BombRadius || 0) + 1 : updatedPlayer.BombRadius,
-                    Speed: powerUpData.type === 'speed' && !updatedPlayer.collectedPowerUps?.includes('speed') ? (updatedPlayer.Speed || 5) + 1 : updatedPlayer.Speed,
-                };
-
-                console.log("Updated player stats after power-up:", newPlayerState);
-                return newPlayerState; 
+                const newStats = { ...player };
+                
+                switch(powerUpData.type) {
+                    case 'bomb':
+                        newStats.MaxBombs = (newStats.MaxBombs || 1) + 1;
+                        console.log(`Increased MaxBombs to ${newStats.MaxBombs}`);
+                        break;
+                    case 'flame':
+                        newStats.bombRadius = (newStats.bombRadius || 2) + 1;
+                        console.log(`Increased bombRadius to ${newStats.bombRadius}`);
+                        break;
+                    case 'speed':
+                        newStats.speed = (newStats.speed || 5) + 2;
+                        console.log(`Increased speed to ${newStats.speed}`);
+                        break;
+                }
+                
+                return newStats;
             }
-            return player; 
+            return player;
         });
-
-        if (JSON.stringify(currentState.players) !== JSON.stringify(updatedPlayers)) {
-            this.store.setState({
-                ...currentState,
-                players: updatedPlayers,
-            });
-
-            console.log("State immediately after setState:", this.store.getState());
-        } else {
-            console.log("No changes detected in player state, skipping setState.");
-        }
+    
+        this.store.setState({
+            ...currentState,
+            players: updatedPlayers
+        });
+    
+        console.log("Updated state:", this.store.getState());
     }
     
     
