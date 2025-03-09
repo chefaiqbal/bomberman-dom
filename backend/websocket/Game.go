@@ -162,8 +162,9 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 
 	// Update client connection
 	(*clients)[player.ID] = &Client{
-		conn: conn,
-		ID:   player.ID,
+		conn:     conn,
+		ID:       player.ID,
+		MaxBombs: 1, // Initialize with 1 bomb
 	}
 
 	// Send current game state to the reconnected player

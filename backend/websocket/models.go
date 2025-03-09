@@ -40,7 +40,7 @@ type Player struct {
 	X           int    `json:"x"`
 	Y           int    `json:"y"`
 	Lives       int    `json:"lives"`
-	MaxBombs    int    `json:"maxBombs"`
+	MaxBombs    int    `json:"maxBombs"`  // Added default value
 	BombRadius  int    `json:"bombRadius"`
 	Speed       int    `json:"speed"`
 }
@@ -92,7 +92,7 @@ type ChatHistory struct {
 type Client struct {
 	conn       *websocket.Conn
 	ID         string
-	MaxBombs   int    
+	MaxBombs   int    // Default: 1, max: 3
 	BombRadius int    
 	Speed      int    
 }

@@ -365,17 +365,25 @@ func HandleBomb(msg json.RawMessage) {
         return
     }
 
-    // Check for unexploded bombs from same owner
+    // Get player's current active bombs and check limits
     bombMu.Lock()
-    hasUnexplodedBomb := false
+    activePlayerBombs := 0
     for _, b := range activeBombs {
         if b.Owner == bomb.Owner && !b.Exploded {
-            hasUnexplodedBomb = true
-            break
+            activePlayerBombs++
         }
     }
 
-    if hasUnexplodedBomb {
+    // Get player's max bombs
+    mu.Lock()
+    maxBombs := 1 // Default value
+    if client, exists := clients[bomb.Owner]; exists {
+        maxBombs = client.MaxBombs
+    }
+    mu.Unlock()
+
+    // Check if player can place more bombs
+    if activePlayerBombs >= maxBombs {
         bombMu.Unlock()
         return
     }
@@ -396,7 +404,7 @@ func HandleBomb(msg json.RawMessage) {
         // Remove bomb from active bombs
         bombMu.Lock()
         for i, b := range activeBombs {
-            if b.X == bomb.X && b.Y == bomb.Y {
+            if b.X == bomb.X && b.Y == bomb.Y && b.Owner == bomb.Owner {
                 activeBombs = append(activeBombs[:i], activeBombs[i+1:]...)
                 break
             }
@@ -405,7 +413,6 @@ func HandleBomb(msg json.RawMessage) {
 
         // Calculate explosion area and destroyed blocks
         mapMu.Lock()
-        // Check each direction for explosion spread
         directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
         destroyedTiles := make([]struct{ X, Y int }, 0)
 
@@ -420,9 +427,9 @@ func HandleBomb(msg json.RawMessage) {
                     if currentMap[newY][newX] == 2 {
                         currentMap[newY][newX] = 0 // Mark as destroyed
                         destroyedTiles = append(destroyedTiles, struct{ X, Y int }{X: newX, Y: newY})
-                        break // Stop explosion in this direction after hitting destructible wall
+                        break // Stop explosion in this direction
                     }
-                    // If indestructible wall, stop explosion in this direction
+                    // If indestructible wall, stop explosion
                     if currentMap[newY][newX] == 1 {
                         break
                     }
@@ -441,7 +448,7 @@ func HandleBomb(msg json.RawMessage) {
         }
         bombMu.Unlock()
 
-        // Broadcast explosion
+        // Broadcast explosion effects
         explosionData := map[string]interface{}{
             "BombX":     bomb.X,
             "BombY":     bomb.Y,
@@ -454,7 +461,6 @@ func HandleBomb(msg json.RawMessage) {
         broadcastMessage("BOMB_EXPLODE", explosionData)
     }()
 }
-
 
 func HandleAuth(msg json.RawMessage) *AuthResponse {
     // Add debug logging
@@ -531,20 +537,20 @@ func HandlePowerUp(msg json.RawMessage) {
 }
 
 func HandlePowerUpCollected(msg json.RawMessage) {
-	var collected PowerUpCollected
-	if err := json.Unmarshal(msg, &collected); err != nil {
-		log.Printf("Failed to unmarshal power-up collection: %v", err)
-		return
-	}
+    var collected PowerUpCollected
+    if err := json.Unmarshal(msg, &collected); err != nil {
+        log.Printf("Failed to unmarshal power-up collection: %v", err)
+        return
+    }
 
-	// Update player stats
-	mu.Lock()
-	if client, exists := clients[collected.PlayerID]; exists {
-		switch collected.Type {
-		case BombPowerUp:
-			if client.MaxBombs < 5 { // Limit max bombs
-				client.MaxBombs++
-			}
+    // Update player stats
+    mu.Lock()
+    if client, exists := clients[collected.PlayerID]; exists {
+        switch collected.Type {
+        case BombPowerUp:
+            if client.MaxBombs < 3 { // Limit max bombs to 3
+                client.MaxBombs++
+            }
 		case FlamePowerUp:
 			if client.BombRadius < 5 { // Limit explosion radius
 				client.BombRadius++
@@ -553,11 +559,11 @@ func HandlePowerUpCollected(msg json.RawMessage) {
 			if client.Speed < 8 { // Limit speed
 				client.Speed++
 			}
-		}
-	}
-	mu.Unlock()
+        }
+    }
+    mu.Unlock()
 
-	// Broadcast power-up collection to all players
-	broadcastMessage("POWER_UP_COLLECTED", collected)
+    // Broadcast power-up collection to all players
+    broadcastMessage("POWER_UP_COLLECTED", collected)
 }
 
