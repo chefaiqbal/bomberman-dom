@@ -279,7 +279,7 @@ function handleKeyDown(e) {
       }
     }, BOMB_COOLDOWN);
   
-    moveAfterBombPlacement(playerId);
+    // moveAfterBombPlacement(playerId);
   
     return bombElement;
   }
