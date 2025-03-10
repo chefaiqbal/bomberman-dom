@@ -651,7 +651,7 @@ createExplosionAnimation(x, y, mapElement) {
                         console.log(`Increased MaxBombs to ${newStats.MaxBombs}`);
                         break;
                     case 'flame':
-                        newStats.bombRadius = (newStats.bombRadius || 2) + 1;
+                        newStats.bombRadius = (newStats.bombRadius || 1) + 1;
                         console.log(`Increased bombRadius to ${newStats.bombRadius}`);
                         break;
                     case 'speed':

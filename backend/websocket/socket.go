@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"time"
-
+"fmt"
 	"github.com/gorilla/websocket"
 	"bomber/websocket/game"
 )
@@ -536,34 +536,58 @@ func HandlePowerUp(msg json.RawMessage) {
     })
 }
 
+var collectedPowerUps = make(map[string]bool) // Tracks collected power-ups
+
 func HandlePowerUpCollected(msg json.RawMessage) {
+    log.Printf("Received power-up collection event: %s", msg)
+
     var collected PowerUpCollected
     if err := json.Unmarshal(msg, &collected); err != nil {
         log.Printf("Failed to unmarshal power-up collection: %v", err)
         return
     }
 
-    // Update player stats
+    key := fmt.Sprintf("%s-%d-%d", collected.Type, collected.X, collected.Y) // Unique key for each power-up
+
+    mu.Lock()
+    if collectedPowerUps[key] {
+        log.Printf("Duplicate power-up collection ignored: %v", collected)
+        mu.Unlock()
+        return
+    }
+    collectedPowerUps[key] = true // Mark as collected
+    mu.Unlock()
+
+    log.Printf("Processing power-up collection for PlayerID: %s, Type: %s", collected.PlayerID, collected.Type)
+
     mu.Lock()
     if client, exists := clients[collected.PlayerID]; exists {
+        log.Printf("Before update -> PlayerID: %s, MaxBombs: %d, BombRadius: %d, Speed: %d",
+            client.ID, client.MaxBombs, client.BombRadius, client.Speed)
+
         switch collected.Type {
         case BombPowerUp:
-            if client.MaxBombs < 3 { // Limit max bombs to 3
+            if client.MaxBombs < 3 {
                 client.MaxBombs++
             }
-		case FlamePowerUp:
-			if client.BombRadius < 5 { // Limit explosion radius
-				client.BombRadius++
-			}
-		case SpeedPowerUp:
-			if client.Speed < 8 { // Limit speed
-				client.Speed++
-			}
+        case FlamePowerUp:
+            if client.BombRadius < 5 {
+                client.BombRadius++
+            }
+        case SpeedPowerUp:
+            if client.Speed < 8 {
+                client.Speed++
+            }
         }
+
+        log.Printf("Updated player stats -> PlayerID: %s, MaxBombs: %d, BombRadius: %d, Speed: %d",
+            client.ID, client.MaxBombs, client.BombRadius, client.Speed)
     }
     mu.Unlock()
 
-    // Broadcast power-up collection to all players
+    // Broadcast only once
+    log.Printf("Broadcasting power-up collection: %+v", collected)
     broadcastMessage("POWER_UP_COLLECTED", collected)
 }
+
 

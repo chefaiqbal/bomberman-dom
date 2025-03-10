@@ -50,7 +50,7 @@ const POWER_UP_EFFECTS = {
         radius: 1,
         apply: (playerState) => ({
             ...playerState,
-            bombRadius: (playerState.bombRadius || 2) + 1
+            bombRadius: (playerState.bombRadius || 1) + 1
         })
     },
     'speed': {
@@ -70,7 +70,7 @@ function createPlayerStore(playerID, x, y) {
         moving: false, movingDirection: null,
         canPlaceBomb: true,
         maxBombs: 1,
-        bombRadius: 2,
+        bombRadius: 1,
         speed: speed
     });
 }
@@ -447,26 +447,30 @@ setTimeout(() => {
 
 
 function detectPowerUpCollision(playerX, playerY) {
-    console.log('detectPowerUpCollision called');
-    console.log('playerX:', playerX, 'playerY:', playerY);
-    const powerUpElements = document.querySelectorAll('.power-up');
+    const powerUpElements = document.querySelectorAll('.power-up:not(.collected)'); // Only check uncollected power-ups
     for (const powerUpElement of powerUpElements) {
         const powerUpX = parseInt(powerUpElement.style.left);
         const powerUpY = parseInt(powerUpElement.style.top);
-console.log('powerUpX:', powerUpX, 'powerUpY:', powerUpY);
-        // Check if player is on the same tile as the power-up
+
         if (Math.abs(playerX - powerUpX) < tileSize && Math.abs(playerY - powerUpY) < tileSize) {
+            powerUpElement.classList.add('collected'); // Mark as collected
             return powerUpElement;
         }
     }
     return null;
 }
 
-
 function collectPowerUp(playerID, powerUpElement) {
+    if (!powerUpElement) {
+        console.error('collectPowerUp called with null powerUpElement');
+        return;
+    }
+
     const powerUpType = powerUpElement.classList[1];
     const x = parseInt(powerUpElement.style.left);
     const y = parseInt(powerUpElement.style.top);
+
+    console.log(`Player ${playerID} collecting power-up -> Type: ${powerUpType}, X: ${x}, Y: ${y}`);
 
     // Send collection message to server
     ws.sendMessage("POWER_UP_COLLECTED", {
@@ -476,12 +480,17 @@ function collectPowerUp(playerID, powerUpElement) {
         y: y
     });
 
+    console.log(`Sent power-up collection event to server for Player: ${playerID}`);
+
     // Remove the power-up element
     powerUpElement.remove();
+    console.log(`Power-up removed from DOM -> Type: ${powerUpType}, X: ${x}, Y: ${y}`);
 
     // Visual feedback
     showPowerUpEffect(powerUpType, playerID);
+    console.log(`Visual effect triggered for power-up: ${powerUpType}`);
 }
+
 
 // Add visual feedback function
 function showPowerUpEffect(type, playerID) {
