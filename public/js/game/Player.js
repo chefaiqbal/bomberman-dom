@@ -160,7 +160,6 @@ function handleKeyDown(e) {
     const playerID = states.playerName;
     if (!playerStores[playerID]) return;
 
-    // Get current player stats from the store
     const currentPlayer = states.players.find(p => p.ID === playerID);
     const currentSpeed = currentPlayer?.speed || 5;
   
@@ -179,7 +178,7 @@ function handleKeyDown(e) {
     const currentTime = Date.now();
     const player = states.players.find(p => p.ID === playerID);
     const speedMultiplier = (player?.speed || 5) / 5; 
-    const effectiveCooldown = MOVEMENT_COOLDOWN / (currentSpeed / 5); // Adjust cooldown based on speed
+    const effectiveCooldown = MOVEMENT_COOLDOWN / (currentSpeed / 5);
   
     if (!isInitialKeypress && currentTime - lastMoveTime < effectiveCooldown) return;
   
@@ -187,18 +186,26 @@ function handleKeyDown(e) {
   
     if (lastPressedKey === "ArrowLeft") {
       newX -= tileSize; 
-      ws.sendMessage("MOVE", { direction: "ArrowLeft", playerName: playerID, x: newX, y: newY, frameIndex });
     } else if (lastPressedKey === "ArrowRight") {
       newX += tileSize; 
-      ws.sendMessage("MOVE", { direction: "ArrowRight", playerName: playerID, x: newX, y: newY, frameIndex });
     } else if (lastPressedKey === "ArrowUp") {
       newY -= tileSize;
-      ws.sendMessage("MOVE", { direction: "ArrowUp", playerName: playerID, x: newX, y: newY, frameIndex });
     } else if (lastPressedKey === "ArrowDown") {
       newY += tileSize; 
-      ws.sendMessage("MOVE", { direction: "ArrowDown", playerName: playerID, x: newX, y: newY, frameIndex });
     }
-  
+    
+    if (detectCollision(newX, newY, playerID)) {
+      return; 
+    }
+
+    ws.sendMessage("MOVE", { 
+      direction: lastPressedKey, 
+      playerName: playerID, 
+      x: newX, 
+      y: newY, 
+      frameIndex 
+    });
+
     if (!detectCollision(newX, newY, playerID)) {
       playerStores[playerID].setState({
         ...state,
@@ -214,7 +221,6 @@ function handleKeyDown(e) {
   
     if (e.key === " ") {
         const playerState = playerStores[playerID].getState();
-        const player = states.players.find(p => p.ID === playerID);
         const activeBombs = document.querySelectorAll(`.bomb[data-owner="${playerID}"]`);
         const maxBombs = player?.MaxBombs || 1;
         const bombRadius = player?.bombRadius || 2;
@@ -231,9 +237,8 @@ function handleKeyDown(e) {
             }
           }
         }
-      }
-      
-  }
+    }
+}
   
   addEvent(document, 'keydown', handleKeyDown);
   
