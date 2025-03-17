@@ -67,6 +67,24 @@ export class WebSocketService {
         this.ws.onclose = (event) => {
             console.log("WebSocket connection closed:", event);
             
+            const state = this.store.getState();
+            // Check if we're in an active game
+            if (state.gameStarted && state.playerName) {
+                console.log(`Player ${state.playerName} disconnected during active game`);
+                // Send a message that this player has lost (if possible)
+                if (this.ws.readyState === WebSocket.OPEN) {
+                    this.sendMessage('PLAYER_LOST', { playerID: state.playerName });
+                }
+                
+                // Set local state to indicate player lost due to refresh/disconnect
+                localStorage.setItem('gameDisconnected', 'true');
+                
+                // Stop reconnection attempts for game disconnects
+                this.reconnectAttempts = this.maxReconnectAttempts;
+                this.clearSession();
+                return;
+            }
+            
             // On refresh or temporary disconnection, try to reconnect
             if (this.reconnectAttempts < this.maxReconnectAttempts) {
                 this.reconnectAttempts++;
@@ -384,6 +402,18 @@ export class WebSocketService {
     handleAuthResponse(data) {
         console.log("Auth response:", data);
         
+        // Check for game disconnect flag
+        const wasDisconnected = localStorage.getItem('gameDisconnected');
+        if (wasDisconnected === 'true') {
+            localStorage.removeItem('gameDisconnected');
+            this.router.navigate('/lose');
+            setTimeout(() => {
+                this.clearSession();
+                this.router.navigate('/');
+            }, 5000);
+            return;
+        }
+        
         if (data.error) {
             console.log("Auth error:", data.error);
             if (data.gameStatus === "in_progress") {
@@ -693,6 +723,25 @@ createExplosionAnimation(x, y, mapElement) {
         }
     
         console.log(`Player ${lostPlayerData.playerID} has been removed from the game.`);
+        
+        // Check if there's only one player left (winner)
+        if (players.length === 1) {
+            const winner = players[0];
+            console.log(`Player ${winner.ID} has won the game by default!`);
+            
+            // Notify the server about the winner
+            this.sendMessage('PLAYER_WON', { playerID: winner.ID });
+            
+            // Navigate the winning player to the win route
+            if (winner.ID === state.playerName) {
+                this.router.navigate('/win');
+                // Clear session after 5 seconds
+                setTimeout(() => {
+                    this.clearSession();
+                    this.router.navigate('/');
+                }, 5000);
+            }
+        }
     }
 
     handleGameWinner(data) {

@@ -398,6 +398,13 @@ function updatePlayerPose() {
             throw new Error('Store is not initialized.');
         }
 
+        // Check for refresh flag on page load
+        const wasRefreshing = localStorage.getItem('gameRefreshing');
+        if (wasRefreshing === 'true') {
+            localStorage.removeItem('gameRefreshing');
+            localStorage.setItem('gameDisconnected', 'true');
+        }
+
         store.subscribe((state) => {
             const players = state.players;
             players.forEach(player => {
@@ -427,7 +434,6 @@ function updatePlayerPose() {
         console.error('Error in updatePlayerPose:', error.message);
     }
 }
-
 
 export function handleBombExplosion(x, y, radius) {
     const explosions = createExplosion(x, y, radius);
@@ -520,3 +526,21 @@ function showPowerUpEffect(type, playerID) {
 
 // Make sure to export the placeBomb function
 export { placeBomb };
+
+// Add event listener for beforeunload to detect page refreshes/closes
+window.addEventListener('beforeunload', function(event) {
+  const state = store.getState();
+  if (state.gameStarted && state.playerName) {
+    // Mark that we're refreshing during active game
+    localStorage.setItem('gameRefreshing', 'true');
+    
+    // Attempt to send player lost message
+    try {
+      if (ws && ws.ws.readyState === WebSocket.OPEN) {
+        ws.sendMessage('PLAYER_LOST', { playerID: state.playerName });
+      }
+    } catch(e) {
+      console.error("Error sending player_lost on refresh:", e);
+    }
+  }
+});

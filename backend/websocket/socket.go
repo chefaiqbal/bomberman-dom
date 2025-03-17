@@ -128,6 +128,16 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		mu.Lock()
 		if client.ID != "" {
+			log.Printf("Client disconnected: %s", client.ID)
+			
+			// Check if player was in active game
+			if CurrentPhase == game.PhaseGame {
+				log.Printf("Player %s disconnected during active game - marking as lost", client.ID)
+				
+				// Handle as player loss
+				go handlePlayerDisconnect(client.ID)
+			}
+			
 			delete(clients, client.ID)
 			// Remove the session when client disconnects
 			RemovePlayerSession(client.ID)
@@ -146,6 +156,55 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	reader(conn)
+}
+
+// Add this new function to handle player disconnections
+func handlePlayerDisconnect(playerID string) {
+    // Add a short delay to allow for potential reconnect attempts
+    time.Sleep(1 * time.Second)
+    
+    // Check if player has reconnected
+    mu.Lock()
+    _, stillConnected := clients[playerID]
+    mu.Unlock()
+    
+    if !stillConnected {
+        // Player did not reconnect within timeout - handle as a loss
+        log.Printf("Player %s confirmed disconnected - handling as loss", playerID)
+        
+        playerLostData := map[string]string{
+            "playerID": playerID,
+            "reason": "disconnected",
+        }
+        
+        // Broadcast player loss
+        broadcastMessage("PLAYER_LOST", playerLostData)
+        
+        // Check if game should end (only one player left)
+        mu.Lock()
+        remaining := len(clients)
+        var lastPlayer string
+        if remaining == 1 {
+            for id := range clients {
+                lastPlayer = id
+                break
+            }
+        }
+        mu.Unlock()
+        
+        if remaining == 1 {
+            log.Printf("Only one player remaining: %s - declaring winner", lastPlayer)
+            
+            // Declare winner
+            broadcastMessage("GAME_WINNER", map[string]interface{}{
+                "playerID": lastPlayer,
+                "message": "You are the last player standing!",
+            })
+            
+            // Schedule game reset
+            time.AfterFunc(5*time.Second, GameDone)
+        }
+    }
 }
 
 func reader(conn *websocket.Conn) {
@@ -302,6 +361,30 @@ func handlePlayerLost(msg json.RawMessage) {
 
     // Broadcast the message
     broadcastMessage("PLAYER_LOST", playerID)
+
+    // Check if this was the last player
+    mu.Lock()
+    remainingPlayers := make([]string, 0)
+    for id := range clients {
+        if id != playerID.ID {
+            remainingPlayers = append(remainingPlayers, id)
+        }
+    }
+    mu.Unlock()
+    
+    // If only one player remains, they win
+    if len(remainingPlayers) == 1 {
+        log.Printf("Player %s is the last one standing!", remainingPlayers[0])
+        
+        // Broadcast winner
+        broadcastMessage("GAME_WINNER", map[string]interface{}{
+            "playerID": remainingPlayers[0],
+            "message": "You are the last player standing!",
+        })
+        
+        // Schedule game reset
+        time.AfterFunc(5*time.Second, GameDone)
+    }
 }
 
 
