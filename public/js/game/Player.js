@@ -527,20 +527,19 @@ function showPowerUpEffect(type, playerID) {
 // Make sure to export the placeBomb function
 export { placeBomb };
 
-// Add event listener for beforeunload to detect page refreshes/closes
-window.addEventListener('beforeunload', function(event) {
-  const state = store.getState();
-  if (state.gameStarted && state.playerName) {
-    // Mark that we're refreshing during active game
-    localStorage.setItem('gameRefreshing', 'true');
-    
-    // Attempt to send player lost message
-    try {
-      if (ws && ws.ws.readyState === WebSocket.OPEN) {
-        ws.sendMessage('PLAYER_LOST', { playerID: state.playerName });
+addEvent(window, 'beforeunload', function(event) {
+    const state = store.getState();
+    if (state.gameStarted && state.playerName) {
+      localStorage.setItem('gameRefreshing', 'true');
+      
+      try {
+        if (ws && ws.ws.readyState === WebSocket.OPEN) {
+          ws.sendMessage('PLAYER_LOST', { playerID: state.playerName });
+          location.reload();
+        }
+      } catch(e) {
+        console.error("Error sending player_lost on refresh:", e);
       }
-    } catch(e) {
-      console.error("Error sending player_lost on refresh:", e);
     }
-  }
-});
+  });
+  

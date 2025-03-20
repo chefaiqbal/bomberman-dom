@@ -12,7 +12,6 @@ export function Chat({ store, ws }) {
         console.log("Sending chat message:", chatMessage);
         ws.sendMessage('CHAT', chatMessage);
     }
-
     function renderMessages() {
         const messages = state.messages || [];
         return messages.map(msg => 
