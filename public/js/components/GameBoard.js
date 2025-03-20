@@ -10,15 +10,23 @@ function createPlayerList(players, store, ID) {
         if (state !== previousState) {
             previousState = state;
 
+            // Only include players that exist in current state
+            const currentPlayers = players.filter(player => 
+                state.players.some(p => p.ID === player.name)
+            );
+
             const playerListElement = createElement(
                 'div',
                 {
                     class: 'player-list',
                     style: 'position: absolute; left: 20px; top: 20px;'
                 },
-                players.map(player => {
+                currentPlayers.map(player => {
                     const playerState = state.players.find(p => p.ID === player.name);
-                    const lives = playerState ? playerState.lives : 3;
+                    const lives = playerState ? playerState.lives : 0;
+                    
+                    // Don't display players with no lives
+                    if (lives <= 0) return null;
             
                     return createElement('div',
                         {
@@ -48,7 +56,7 @@ function createPlayerList(players, store, ID) {
                             )
                         ]
                     );
-                })                
+                }).filter(Boolean) // Remove null entries               
             );
 
             const existingElement = document.querySelector('.player-list');
@@ -67,8 +75,6 @@ function createPlayerList(players, store, ID) {
     });
 }
 
-// Removed the entire createTimer function here
-
 function createPlayerLives(ID, store) {
     let previousLives = null; 
 
@@ -76,34 +82,51 @@ function createPlayerLives(ID, store) {
         const state = store.getState();
         const player = state.players.find(player => player.ID === ID);
 
-        if (player) {
-            const playerLives = player.lives;
-            console.log("Player Lives: ", playerLives);
+        // Check if player exists in the state
+        if (!player) {
+            // Player no longer exists, remove their lives display
+            const existingElement = document.querySelector('.player-lives');
+            if (existingElement) {
+                existingElement.remove();
+            }
+            return;
+        }
 
-            if (previousLives !== playerLives) {
-                previousLives = playerLives; 
+        const playerLives = player.lives;
+        console.log("Player Lives: ", playerLives);
 
-                const playerLivesElement = createElement(
-                    'div',
-                    {
-                        class: 'player-lives',
-                        style: 'position: absolute; right: 60px; top: 60px; display: flex; gap: 10px;'
-                    },
-                    Array(playerLives).fill().map(() =>
-                        createElement('div', {
-                            class: 'heart-large',
-                            style: 'width: 40px; height: 40px; border: 1px solid red; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
-                        })
-                    )
-                );
+        if (previousLives !== playerLives) {
+            previousLives = playerLives; 
 
+            // Don't display lives if player has none
+            if (playerLives <= 0) {
                 const existingElement = document.querySelector('.player-lives');
                 if (existingElement) {
                     existingElement.remove();
                 }
-
-                render(playerLivesElement, document.body);
+                return;
             }
+
+            const playerLivesElement = createElement(
+                'div',
+                {
+                    class: 'player-lives',
+                    style: 'position: absolute; right: 60px; top: 60px; display: flex; gap: 10px;'
+                },
+                Array(playerLives).fill().map(() =>
+                    createElement('div', {
+                        class: 'heart-large',
+                        style: 'width: 40px; height: 40px; border: 1px solid red; background: url(/static/img/livesheart.webp) no-repeat center; background-size: contain;'
+                    })
+                )
+            );
+
+            const existingElement = document.querySelector('.player-lives');
+            if (existingElement) {
+                existingElement.remove();
+            }
+
+            render(playerLivesElement, document.body);
         }
     };
 
@@ -118,10 +141,11 @@ export function GameBoard({ store, router, ws }) {
     const state = store.getState();
     let chatVisible = false;
     
+    // Filter to only include players that exist in the current state
     const players = [
         { name: state.playerName },
         ...(state.players || [])
-            .filter(player => player.ID !== state.playerName)
+            .filter(player => player.ID !== state.playerName && player.lives > 0)
             .map(player => ({ name: player.ID }))
     ].filter(player => player.name);
 
@@ -156,7 +180,6 @@ export function GameBoard({ store, router, ws }) {
             ),
             createPlayerList(players, store, state.playerName),
             KeyToPlay(),
-            // Timer removed from here
             createElement('img', {
                 src: '/static/img/chatlogo.png',
                 alt: 'Chat',

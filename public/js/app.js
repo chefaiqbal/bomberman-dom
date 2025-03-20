@@ -22,6 +22,7 @@ const initialState = {
     reconnecting: false,
     lobbyPhase: 'WAITING',
     gameInProgress: false,
+    disconnectedPlayers: [], // Track disconnected players
 };
 
 export const store = createStore(initialState);
@@ -82,10 +83,34 @@ export const ws = new WebSocketService(store, router);
 const appElement = document.getElementById('app');
 
 let PlayerCount = 0; 
+let previousPlayers = [];
 
 // Watch for player count changes
 store.subscribe((state) => {
     const playerCount = state.players.length;
+    
+    // Check for player removals by comparing with previous state
+    if (previousPlayers.length > state.players.length) {
+        const currentPlayerIds = state.players.map(p => p.ID);
+        const removedPlayers = previousPlayers.filter(p => !currentPlayerIds.includes(p.ID));
+        
+        if (removedPlayers.length > 0) {
+            console.log('Players disconnected:', removedPlayers.map(p => p.ID));
+            
+            // Clean up any UI elements for these players
+            removedPlayers.forEach(player => {
+                // Add to disconnected players list
+                state.disconnectedPlayers.push(player.ID);
+                
+                // Remove player-specific UI elements that might persist
+                const playerElements = document.querySelectorAll(`[data-player-id="${player.ID}"]`);
+                playerElements.forEach(el => el.remove());
+            });
+        }
+    }
+    
+    // Update tracking variables
+    previousPlayers = [...state.players];
 
     if (playerCount !== PlayerCount) {
         if (playerCount === 1 && !state.mapGen) {
@@ -105,7 +130,5 @@ store.subscribe((state) => {
         PlayerCount = playerCount; 
     }
 });
-
-
 
 router.navigate('/');
