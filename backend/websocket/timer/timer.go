@@ -3,6 +3,7 @@ package timer
 import (
 	"sync"
 	"time"
+
 	"bomber/websocket/game"
 )
 
@@ -18,7 +19,7 @@ type GameTimer struct {
 
 func NewGameTimer(broadcast func(string, interface{}), onPhaseChange func(string)) *GameTimer {
 	return &GameTimer{
-		timeLeft:      2, // 5 seconds for each phase
+		timeLeft:      10, // 5 seconds for each phase
 		isActive:      false,
 		phase:         "WAITING",
 		broadcast:     broadcast,
@@ -33,7 +34,7 @@ func (t *GameTimer) Start() {
 		return
 	}
 	t.isActive = true
-	t.timeLeft = 2
+	t.timeLeft = 20
 	t.phase = "WAITING"
 	t.mu.Unlock()
 
@@ -46,7 +47,6 @@ func (t *GameTimer) Start() {
 			phase := t.phase
 			t.mu.Unlock()
 
-			// Broadcast timer update
 			t.broadcast("TIMER_UPDATE", map[string]interface{}{
 				"timeLeft": timeLeft,
 				"isActive": true,
@@ -55,13 +55,12 @@ func (t *GameTimer) Start() {
 
 			if timeLeft <= 0 {
 				if phase == game.PhaseWaiting {
-					// Transition to pregame phase
+
 					t.mu.Lock()
-					t.timeLeft = 2
+					t.timeLeft = 10
 					t.phase = game.PhasePregame
 					t.mu.Unlock()
 
-					 // Use callback instead of direct access
 					if t.onPhaseChange != nil {
 						t.onPhaseChange(game.PhasePregame)
 					}
@@ -85,10 +84,9 @@ func (t *GameTimer) Start() {
 	}()
 
 	if t.phase == game.PhaseGame {
-		// Prevent new connections during game phase
 		t.broadcast("GAME_STATUS", map[string]interface{}{
 			"inProgress": true,
-			"phase": game.PhaseGame,
+			"phase":      game.PhaseGame,
 		})
 	}
 }
@@ -96,7 +94,7 @@ func (t *GameTimer) Start() {
 func (t *GameTimer) StartEndingPhase() {
 	t.mu.Lock()
 	t.phase = game.PhaseEnding
-	t.timeLeft = 5  // 5 seconds before reset
+	t.timeLeft = 20 // 5 seconds before reset
 	t.isActive = true
 	t.mu.Unlock()
 
@@ -132,17 +130,15 @@ func (t *GameTimer) Stop() {
 	t.isActive = false
 	t.timeLeft = 0
 
-	// Broadcast final state
 	t.broadcast("TIMER_UPDATE", map[string]interface{}{
 		"timeLeft": t.timeLeft,
 		"isActive": t.isActive,
 		"phase":    t.phase,
 	})
 
-	// Reset game status when game ends
 	t.broadcast("GAME_STATUS", map[string]interface{}{
 		"inProgress": false,
-		"phase": "WAITING",
+		"phase":      "WAITING",
 	})
 }
 

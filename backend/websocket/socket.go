@@ -1,13 +1,14 @@
 package bomber
 
 import (
+	"bomber/websocket/game"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
-"fmt"
+
 	"github.com/gorilla/websocket"
-	"bomber/websocket/game"
 )
 
 var upgrader = websocket.Upgrader{
@@ -19,28 +20,28 @@ var lastDamageTime = make(map[string]time.Time)
 
 
 func init() {
-	// Clear all maps and states
+
 	mu.Lock()
 	clients = make(map[string]*Client)
 	WaitedClient = make(map[string]*Client)
 	mu.Unlock()
 
-	// Clear sessions
+
 	sessionMu.Lock()
 	sessions = make(map[string]*Session)
 	sessionMu.Unlock()
 
-	// Clear chat history
+
 	chatHistory.mu.Lock()
 	chatHistory.Messages = make([]ChatMessage, 0)
 	chatHistory.mu.Unlock()
 
-	// Clear map
+
 	mapMu.Lock()
 	currentMap = nil
 	mapMu.Unlock()
 
-	// Reset game state
+
 	GameStarted = false // Update to use GameStarted
 
 	log.Println("Server state initialized")
@@ -57,7 +58,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check game state immediately after connection
+
 	if CurrentPhase != game.PhaseWaiting {
 		conn.WriteJSON(map[string]interface{}{
 			"type": "GAME_STATUS",
@@ -70,21 +71,21 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create initial client
+
 	client := &Client{
 		conn:       conn,
-		MaxBombs:   1, // Initial value
-		BombRadius: 1, // Initial value
-		Speed:      5, // Initial value
+		MaxBombs:   1, 
+		BombRadius: 1, 
+		Speed:      5, 
 	}
 
 	mu.Lock()
-	// Check if this is a reconnecting client
+
 	var isReconnect bool
 	var oldClientID string
 	for id, c := range clients {
 		if c.conn != conn && c.ID != "" {
-			// Check if this is the same player trying to reconnect
+
 			session := ValidateSession(id)
 			if session != nil && session.PlayerID == id {
 				isReconnect = true
@@ -94,7 +95,6 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// If it's a reconnection, remove the old client first
 	if isReconnect {
 		delete(clients, oldClientID)
 	}
@@ -112,7 +112,7 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	mu.Unlock()
 
-	// Send initial connection success
+
 	if err := conn.WriteJSON(map[string]interface{}{
 		"type": "CONNECTION_SUCCESS",
 		"data": map[string]interface{}{
@@ -124,25 +124,24 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Handle cleanup on disconnect
+
 	defer func() {
 		mu.Lock()
 		if client.ID != "" {
 			log.Printf("Client disconnected: %s", client.ID)
 			
-			// Check if player was in active game
+
 			if CurrentPhase == game.PhaseGame {
 				log.Printf("Player %s disconnected during active game - marking as lost", client.ID)
 				
-				// Handle as player loss
+
 				go handlePlayerDisconnect(client.ID)
 			}
 			
 			delete(clients, client.ID)
-			// Remove the session when client disconnects
+
 			RemovePlayerSession(client.ID)
 
-			// Only broadcast if there was an ID (player was actually in game)
 			var clientList []Client
 			for _, c := range clients {
 				clientList = append(clientList, *c)
@@ -158,18 +157,15 @@ func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	reader(conn)
 }
 
-// Add this new function to handle player disconnections
 func handlePlayerDisconnect(playerID string) {
-    // Add a short delay to allow for potential reconnect attempts
     time.Sleep(1 * time.Second)
     
-    // Check if player has reconnected
+
     mu.Lock()
     _, stillConnected := clients[playerID]
     mu.Unlock()
     
     if !stillConnected {
-        // Player did not reconnect within timeout - handle as a loss
         log.Printf("Player %s confirmed disconnected - handling as loss", playerID)
         
         playerLostData := map[string]string{
@@ -177,10 +173,10 @@ func handlePlayerDisconnect(playerID string) {
             "reason": "disconnected",
         }
         
-        // Broadcast player loss
+
         broadcastMessage("PLAYER_LOST", playerLostData)
         
-        // Check if game should end (only one player left)
+
         mu.Lock()
         remaining := len(clients)
         var lastPlayer string
@@ -195,13 +191,13 @@ func handlePlayerDisconnect(playerID string) {
         if remaining == 1 {
             log.Printf("Only one player remaining: %s - declaring winner", lastPlayer)
             
-            // Declare winner
+
             broadcastMessage("GAME_WINNER", map[string]interface{}{
                 "playerID": lastPlayer,
                 "message": "You are the last player standing!",
             })
             
-            // Schedule game reset
+
             time.AfterFunc(5*time.Second, GameDone)
         }
     }
@@ -279,16 +275,16 @@ func handlePlayerWon(msg json.RawMessage) {
 
     log.Printf("Player won: %s", playerID.PlayerID)
 
-    // Start ending phase
+
     gameTimer.StartEndingPhase()
 
-    // Broadcast winner
+
     broadcastMessage("GAME_WINNER", map[string]interface{}{
         "playerID": playerID.PlayerID,
         "message": "Game Over - Winner!",
     })
 
-    // Schedule game reset
+
     time.AfterFunc(5*time.Second, func() {
         GameDone()
     })
@@ -327,14 +323,14 @@ func handelTakeDmg(msg json.RawMessage) {
         return
     }
 
-    // Check if player was recently damaged
+
     if lastHit, exists := lastDamageTime[playerID.ID]; exists {
         if time.Since(lastHit) < time.Second {
             return 
         }
     }
     
-    // Update last damage time
+
     lastDamageTime[playerID.ID] = time.Now()
 
     broadcastMessage("TAKE_DMG", playerID)
@@ -342,27 +338,22 @@ func handelTakeDmg(msg json.RawMessage) {
 
 
 func handlePlayerLost(msg json.RawMessage) {
-    // Log the raw message for debugging
-    log.Printf("Raw message: %s", string(msg))
 
-    // Define a struct that matches the expected JSON structure
     var playerID struct {
         ID string `json:"playerID"` // Ensure this matches the JSON field name
     }
 
-    // Unmarshal the JSON into the struct
     if err := json.Unmarshal(msg, &playerID); err != nil {
         log.Printf("Failed to unmarshal player ID: %v", err)
         return
     }
 
-    // Log the populated struct
-    log.Printf("Player lost: %+v", playerID)
+  
 
-    // Broadcast the message
+
     broadcastMessage("PLAYER_LOST", playerID)
 
-    // Check if this was the last player
+
     mu.Lock()
     remainingPlayers := make([]string, 0)
     for id := range clients {
@@ -372,17 +363,17 @@ func handlePlayerLost(msg json.RawMessage) {
     }
     mu.Unlock()
     
-    // If only one player remains, they win
+
     if len(remainingPlayers) == 1 {
         log.Printf("Player %s is the last one standing!", remainingPlayers[0])
         
-        // Broadcast winner
+
         broadcastMessage("GAME_WINNER", map[string]interface{}{
             "playerID": remainingPlayers[0],
             "message": "You are the last player standing!",
         })
         
-        // Schedule game reset
+
         time.AfterFunc(5*time.Second, GameDone)
     }
 }
@@ -395,12 +386,12 @@ func HandleChat(msg json.RawMessage) {
         return
     }
 
-    // Allow chat messages regardless of game phase
+
     chatHistory.mu.Lock()
     chatHistory.Messages = append(chatHistory.Messages, chat)
     chatHistory.mu.Unlock()
 
-    // Broadcast to all connected clients, including waiting clients
+
     mu.Lock()
     message := struct {
         Type string      `json:"type"`
@@ -410,12 +401,12 @@ func HandleChat(msg json.RawMessage) {
         Data: chat,
     }
 
-    // Send to active clients
+
     for _, client := range clients {
         client.conn.WriteJSON(message)
     }
     
-    // Send to waiting clients
+
     for _, client := range WaitedClient {
         client.conn.WriteJSON(message)
     }
@@ -426,7 +417,7 @@ func GetChatHistory() []ChatMessage {
 	chatHistory.mu.RLock()
 	defer chatHistory.mu.RUnlock()
 
-	// Create a copy of the messages
+
 	messages := make([]ChatMessage, len(chatHistory.Messages))
 	copy(messages, chatHistory.Messages)
 	return messages
@@ -448,7 +439,7 @@ func HandleBomb(msg json.RawMessage) {
         return
     }
 
-    // Get player's current active bombs and check limits
+
     bombMu.Lock()
     activePlayerBombs := 0
     for _, b := range activeBombs {
@@ -457,7 +448,7 @@ func HandleBomb(msg json.RawMessage) {
         }
     }
 
-    // Get player's max bombs
+
     mu.Lock()
     maxBombs := 1 // Default value
     if client, exists := clients[bomb.Owner]; exists {
@@ -465,8 +456,7 @@ func HandleBomb(msg json.RawMessage) {
     }
     mu.Unlock()
 
-    // Check if player can place more bombs
-    if activePlayerBombs >= maxBombs {
+    if activePlayerBombs >= maxBombs { // check bomb limit
         bombMu.Unlock()
         return
     }
@@ -477,14 +467,13 @@ func HandleBomb(msg json.RawMessage) {
     activeBombs = append(activeBombs, bomb)
     bombMu.Unlock()
 
-    // Broadcast bomb placement
     broadcastMessage("BOMB_PLACE", bomb)
 
-    // Start bomb timer
+
     go func() {
         time.Sleep(3 * time.Second)
 
-        // Remove bomb from active bombs
+
         bombMu.Lock()
         for i, b := range activeBombs {
             if b.X == bomb.X && b.Y == bomb.Y && b.Owner == bomb.Owner {
@@ -494,7 +483,6 @@ func HandleBomb(msg json.RawMessage) {
         }
         bombMu.Unlock()
 
-        // Calculate explosion area and destroyed blocks
         mapMu.Lock()
         directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
         destroyedTiles := make([]struct{ X, Y int }, 0)
@@ -504,15 +492,13 @@ func HandleBomb(msg json.RawMessage) {
                 newX := bomb.X/50 + (dir[0] * i)
                 newY := bomb.Y/50 + (dir[1] * i)
 
-                // Check bounds
                 if newY >= 0 && newY < len(currentMap) && newX >= 0 && newX < len(currentMap[0]) {
-                    // If destructible wall
                     if currentMap[newY][newX] == 2 {
                         currentMap[newY][newX] = 0 // Mark as destroyed
                         destroyedTiles = append(destroyedTiles, struct{ X, Y int }{X: newX, Y: newY})
-                        break // Stop explosion in this direction
+                        break 
                     }
-                    // If indestructible wall, stop explosion
+
                     if currentMap[newY][newX] == 1 {
                         break
                     }
@@ -521,7 +507,7 @@ func HandleBomb(msg json.RawMessage) {
         }
         mapMu.Unlock()
 
-        // Mark bomb as exploded
+
         bombMu.Lock()
         for i := range activeBombs {
             if activeBombs[i].X == bomb.X && activeBombs[i].Y == bomb.Y {
@@ -531,7 +517,7 @@ func HandleBomb(msg json.RawMessage) {
         }
         bombMu.Unlock()
 
-        // Broadcast explosion effects
+
         explosionData := map[string]interface{}{
             "BombX":     bomb.X,
             "BombY":     bomb.Y,
@@ -539,22 +525,20 @@ func HandleBomb(msg json.RawMessage) {
             "Destroyed": destroyedTiles,
         }
 
-        // Broadcast updated map and explosion
+
         broadcastMessage("MAP", currentMap)
         broadcastMessage("BOMB_EXPLODE", explosionData)
     }()
 }
 
 func HandleAuth(msg json.RawMessage) *AuthResponse {
-    // Add debug logging
-    log.Printf("Current game phase: %s", CurrentPhase)
 
     var player Player
     if err := json.Unmarshal(msg, &player); err != nil {
         return nil
     }
 
-    // Check game phase first
+
     if CurrentPhase != game.PhaseWaiting {
         log.Printf("Rejecting auth - game phase is: %s", CurrentPhase)
         return &AuthResponse{
@@ -565,7 +549,7 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
     }
 
     sessionMu.RLock()
-    // Check for existing session
+
     var existingSession *Session
     for _, session := range sessions {
         if session.PlayerID == player.ID {
@@ -575,7 +559,7 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
     }
     sessionMu.RUnlock()
 
-    // If player has existing session, validate and reconnect
+
     if existingSession != nil {
         mu.Lock()
         if oldClient, exists := clients[player.ID]; exists {
@@ -589,7 +573,7 @@ func HandleAuth(msg json.RawMessage) *AuthResponse {
         }
     }
 
-    // Create new session for new player
+
     session := CreateSession(player.ID)
     if session == nil {
         return &AuthResponse{
@@ -668,7 +652,7 @@ func HandlePowerUpCollected(msg json.RawMessage) {
     }
     mu.Unlock()
 
-    // Broadcast only once
+
     log.Printf("Broadcasting power-up collection: %+v", collected)
     broadcastMessage("POWER_UP_COLLECTED", collected)
 }

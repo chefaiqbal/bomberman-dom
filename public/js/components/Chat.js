@@ -9,7 +9,7 @@ export function Chat({ store, ws }) {
             message: message,
             playerName: state.playerName
         };
-        console.log("Sending chat message:", chatMessage);
+
         ws.sendMessage('CHAT', chatMessage);
     }
     function renderMessages() {
@@ -28,10 +28,10 @@ export function Chat({ store, ws }) {
         );
     }
 
-    // Subscribe to state changes
+
     store.subscribe((newState) => {
         state = newState;
-        console.log('Chat state updated:', newState.messages);
+
         const chatContainer = document.querySelector('.chat-messages');
         if (chatContainer) {
             chatContainer.innerHTML = '';

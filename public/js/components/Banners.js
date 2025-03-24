@@ -1,4 +1,4 @@
-// components/Banners.js
+
 import { createElement } from '../core/index.js';
 
 export function createWinBanner() {

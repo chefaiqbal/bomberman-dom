@@ -23,7 +23,7 @@ export function Lobby({ store, router, ws }) {
     }
 
     function renderPlayersList() {
-        console.log("Current players:", state.players);
+
         const uniquePlayers = state.players.reduce((acc, current) => {
             const x = acc.find(item => item.ID === current.ID);
             if (!x) {

@@ -2,41 +2,41 @@ package bomber
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
-	"time"  // Add this import
-	"fmt"
-	"bomber/websocket/timer"
+	"time"
+
 	"bomber/websocket/game"
+	"bomber/websocket/timer"
+
+	// Add this import
 
 	"github.com/gorilla/websocket"
 )
 
-
 var (
-	GameStarted bool // Export the variable
-	CurrentPhase = game.PhaseWaiting
-	gameTimer = timer.NewGameTimer(broadcastMessage, handlePhaseChange)
+	GameStarted    bool // Export the variable
+	CurrentPhase   = game.PhaseWaiting
+	gameTimer      = timer.NewGameTimer(broadcastMessage, handlePhaseChange)
 	activePowerUps = make(map[string]*PowerUp) // key is "x,y"
 	powerUpMu      sync.RWMutex
 )
 
-// Add phase change handler
 func handlePhaseChange(newPhase string) {
-    CurrentPhase = newPhase
-    if newPhase == game.PhaseGame {
-        GameStarted = true
-    }
+	CurrentPhase = newPhase
+	if newPhase == game.PhaseGame {
+		GameStarted = true
+	}
 }
 
 func init() {
-    // Reset game state on server start
-    GameStarted = false
-    CurrentPhase = game.PhaseWaiting
-    gameTimer = timer.NewGameTimer(broadcastMessage, handlePhaseChange)
-    log.Printf("Game initialized with phase: %s", CurrentPhase)
-    GameDone() // Ensure clean state on startup
+	GameStarted = false
+	CurrentPhase = game.PhaseWaiting
+	gameTimer = timer.NewGameTimer(broadcastMessage, handlePhaseChange)
+	log.Printf("Game initialized with phase: %s", CurrentPhase)
+	GameDone() // Ensure clean state on startup
 }
 
 func Mapping(msg json.RawMessage) {
@@ -48,67 +48,57 @@ func Mapping(msg json.RawMessage) {
 		return
 	}
 
-	// Store the map
 	mapMu.Lock()
 	currentMap = data.Mapp
 	mapMu.Unlock()
 
-	log.Printf("map: %v", data.Mapp)
 	broadcastMessage("MAP", data.Mapp)
 }
 
 func GameStart() {
 	GameStarted = true
 	CurrentPhase = game.PhaseGame
-
 }
 
 func GameDone() {
-    // Reset game state
-    GameStarted = false
-    CurrentPhase = game.PhaseWaiting
+	GameStarted = false
+	CurrentPhase = game.PhaseWaiting
 
-    mu.Lock()
-    // Clear all existing clients and sessions
-    clients = make(map[string]*Client)
-    WaitedClient = make(map[string]*Client)
+	mu.Lock()
 
-    // Clear sessions
-    sessionMu.Lock()
-    sessions = make(map[string]*Session)
-    sessionMu.Unlock()
+	clients = make(map[string]*Client)
+	WaitedClient = make(map[string]*Client)
 
-    // Clear chat history
-    chatHistory.mu.Lock()
-    chatHistory.Messages = make([]ChatMessage, 0)
-    chatHistory.mu.Unlock()
+	sessionMu.Lock()
+	sessions = make(map[string]*Session)
+	sessionMu.Unlock()
 
-    // Clear map and power-ups
-    mapMu.Lock()
-    currentMap = nil
-    mapMu.Unlock()
+	chatHistory.mu.Lock()
+	chatHistory.Messages = make([]ChatMessage, 0)
+	chatHistory.mu.Unlock()
 
-    powerUpMu.Lock()
-    activePowerUps = make(map[string]*PowerUp)
-    powerUpMu.Unlock()
+	mapMu.Lock()
+	currentMap = nil
+	mapMu.Unlock()
 
-    // Clear active bombs
-    bombMu.Lock()
-    activeBombs = make([]Bomb, 0)
-    bombMu.Unlock()
+	powerUpMu.Lock()
+	activePowerUps = make(map[string]*PowerUp)
+	powerUpMu.Unlock()
 
-    mu.Unlock()
+	bombMu.Lock()
+	activeBombs = make([]Bomb, 0)
+	bombMu.Unlock()
 
-    // Reset last damage times
-    lastDamageTime = make(map[string]time.Time)
+	mu.Unlock()
 
-    log.Printf("Game fully reset, new phase: %s", CurrentPhase)
+	lastDamageTime = make(map[string]time.Time)
 
-    // Broadcast game reset to all connections
-    broadcastMessage("GAME_RESET", map[string]interface{}{
-        "status": "reset",
-        "phase":  game.PhaseWaiting,
-    })
+	log.Printf("Game fully reset, new phase: %s", CurrentPhase)
+
+	broadcastMessage("GAME_RESET", map[string]interface{}{
+		"status": "reset",
+		"phase":  game.PhaseWaiting,
+	})
 }
 
 func sendWaitResponse(conn *websocket.Conn) {
@@ -129,7 +119,6 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 		return
 	}
 
-	// Validate session
 	sessionMu.RLock()
 	var validSession bool
 	for _, session := range sessions {
@@ -148,34 +137,31 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 	mu.Lock()
 	if CurrentPhase != game.PhaseWaiting {
 		mu.Unlock()
-		// Send game status to client
+
 		conn.WriteJSON(map[string]interface{}{
 			"type": "GAME_STATUS",
 			"data": map[string]interface{}{
 				"inProgress": true,
-				"phase": CurrentPhase,
-				"message": "Cannot join: Game is in pregame or active phase",
+				"phase":      CurrentPhase,
+				"message":    "Cannot join: Game is in pregame or active phase",
 			},
 		})
 		return
 	}
 
-	// Update client connection
 	(*clients)[player.ID] = &Client{
 		conn:       conn,
 		ID:         player.ID,
-		MaxBombs:   1,    // Initial values
-		BombRadius: 2,    // Initial values
-		Speed:      5,    // Initial values
+		MaxBombs:   1,
+		BombRadius: 2,
+		Speed:      5,
 	}
 
-	// Send current game state to the reconnected player
 	var clientList []Client
 	for _, c := range *clients {
 		clientList = append(clientList, *c)
 	}
 
-	// Send game state to the reconnected player
 	mapMu.RLock()
 	gameMap := currentMap
 	mapMu.RUnlock()
@@ -193,18 +179,15 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 
 	mu.Unlock()
 
-	// Broadcast updated player list to all clients
 	broadcastMessage("PLAYER_JOIN", clientList)
 
-	// Start timer if needed
 	if len(*clients) >= 2 && !gameTimer.GetState()["isActive"].(bool) && !GameStarted {
 		go gameTimer.Start()
 	}
 }
 
 func spawnPowerUp(x, y int) {
-	// 30% chance to spawn a power-up
-	if rand.Float32() > 0.3 {
+	if rand.Float32() > 0.45 {
 		return
 	}
 
@@ -219,52 +202,47 @@ func spawnPowerUp(x, y int) {
 	activePowerUps[fmt.Sprintf("%d,%d", x, y)] = powerUp
 	powerUpMu.Unlock()
 
-	// Broadcast power-up spawn
 	broadcastMessage("POWER_UP", powerUp)
 }
 
 func calculateDestroyedBlocks(x, y, radius int) []struct{ X, Y int } {
-    var destroyed []struct{ X, Y int }
-    directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+	var destroyed []struct{ X, Y int }
+	directions := [][2]int{{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
 
-    mapMu.RLock()
-    defer mapMu.RUnlock()
+	mapMu.RLock()
+	defer mapMu.RUnlock()
 
-    // Create a copy of the current map state
-    mapCopy := make([][]int, len(currentMap))
-    for i := range currentMap {
-        mapCopy[i] = make([]int, len(currentMap[i]))
-        copy(mapCopy[i], currentMap[i])
-    }
+	mapCopy := make([][]int, len(currentMap))
+	for i := range currentMap {
+		mapCopy[i] = make([]int, len(currentMap[i]))
+		copy(mapCopy[i], currentMap[i])
+	}
 
-    for _, dir := range directions {
-        for i := 0; i <= radius; i++ {
-            newX := x/50 + (dir[0] * i)
-            newY := y/50 + (dir[1] * i)
+	for _, dir := range directions {
+		for i := 0; i <= radius; i++ {
+			newX := x/50 + (dir[0] * i)
+			newY := y/50 + (dir[1] * i)
 
-            if newX < 0 || newY < 0 || newX >= len(mapCopy[0]) || newY >= len(mapCopy) {
-                break
-            }
+			if newX < 0 || newY < 0 || newX >= len(mapCopy[0]) || newY >= len(mapCopy) {
+				break
+			}
 
-            // Stop at solid walls
-            if mapCopy[newY][newX] == 1 {
-                break
-            }
+			if mapCopy[newY][newX] == 1 {
+				break
+			}
 
-            // Handle destructible walls
-            if mapCopy[newY][newX] == 2 {
-                destroyed = append(destroyed, struct{ X, Y int }{newX, newY})
-                mapCopy[newY][newX] = 0 // Update the copy
-                go spawnPowerUp(newX*50+20, newY*50+20)
-                break // Stop explosion in this direction after destroying the wall
-            }
-        }
-    }
+			if mapCopy[newY][newX] == 2 {
+				destroyed = append(destroyed, struct{ X, Y int }{newX, newY})
+				mapCopy[newY][newX] = 0 // Update the copy
+				go spawnPowerUp(newX*50+20, newY*50+20)
+				break // Stop explosion in this direction after destroying the wall
+			}
+		}
+	}
 
-    // Update the actual map with destroyed blocks
-    for _, d := range destroyed {
-        currentMap[d.Y][d.X] = 0
-    }
+	for _, d := range destroyed {
+		currentMap[d.Y][d.X] = 0
+	}
 
-    return destroyed
+	return destroyed
 }

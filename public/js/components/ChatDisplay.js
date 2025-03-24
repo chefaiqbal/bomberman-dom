@@ -1,9 +1,7 @@
 import { createElement } from '../core/dom.js';
 
-export function ChatDisplay({ messages = [] }) {
-    console.log('ChatDisplay received messages:', messages); // Debug logging
-    
-    // Create a function to scroll to bottom after render
+export function ChatDisplay({ messages = [] }) {    
+
     function scrollToBottom(element) {
         if (element) {
             setTimeout(() => {

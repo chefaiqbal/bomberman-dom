@@ -61,7 +61,7 @@ export function updateMapTile(x, y, newValue) {
     if (temp[tileY] && temp[tileY][tileX] === 2) { // Only destroy breakable walls
         temp[tileY][tileX] = 0;
         
-        // Update the visual representation
+
         const mapElement = document.querySelector(".map");
         const tileElement = mapElement.children[tileY * 15 + tileX];
         if (tileElement) {
@@ -71,8 +71,8 @@ export function updateMapTile(x, y, newValue) {
 }
 
   
-  // const map= generateMap();
-  // const mapElement = renderMap(map);
-  // const container = document.getElementById('game-container');
-  // render(mapElement, container);
+
+
+
+
   

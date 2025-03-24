@@ -18,11 +18,11 @@ type Chat struct {
 }
 
 type Move struct {
-    Direction  string `json:"direction"`
-    PlayerName string `json:"playerName"`
-    X          int    `json:"x"`
-    Y          int    `json:"y"`
-	FrameIndex int   `json:"frameIndex"`
+	Direction  string `json:"direction"`
+	PlayerName string `json:"playerName"`
+	X          int    `json:"x"`
+	Y          int    `json:"y"`
+	FrameIndex int    `json:"frameIndex"`
 }
 
 type Bomb struct {
@@ -36,13 +36,13 @@ type Bomb struct {
 }
 
 type Player struct {
-	ID          string `json:"id"`
-	X           int    `json:"x"`
-	Y           int    `json:"y"`
-	Lives       int    `json:"lives"`
-	MaxBombs    int    `json:"maxBombs"`  // Added default value
-	BombRadius  int    `json:"bombRadius"`
-	Speed       int    `json:"speed"`
+	ID         string `json:"id"`
+	X          int    `json:"x"`
+	Y          int    `json:"y"`
+	Lives      int    `json:"lives"`
+	MaxBombs   int    `json:"maxBombs"` // Added default value
+	BombRadius int    `json:"bombRadius"`
+	Speed      int    `json:"speed"`
 }
 
 type ChatMessage struct {
@@ -50,24 +50,22 @@ type ChatMessage struct {
 	PlayerName string `json:"playerName"`
 }
 
-// Add game state related types
 type GameMessage struct {
 	Status   string `json:"status"`
 	Redirect string `json:"redirect"`
 }
 
 type GameState struct {
-	InProgress  bool        `json:"inProgress"`
-	Phase       string      `json:"phase"`
-	Players     []Client    `json:"players"`
-	TimeLeft    int         `json:"timeLeft"`
-	IsActive    bool        `json:"isActive"`
+	InProgress  bool          `json:"inProgress"`
+	Phase       string        `json:"phase"`
+	Players     []Client      `json:"players"`
+	TimeLeft    int           `json:"timeLeft"`
+	IsActive    bool          `json:"isActive"`
 	ChatHistory []ChatMessage `json:"chatHistory"`
 	Map         [][]int       `json:"map"`
 	Bombs       []Bomb        `json:"bombs"`
 }
 
-// Add these new types
 type Session struct {
 	ID        string    `json:"id"`
 	PlayerID  string    `json:"playerId"`
@@ -75,29 +73,26 @@ type Session struct {
 }
 
 type AuthResponse struct {
-	SessionID   string `json:"sessionId"`
-	PlayerID    string `json:"playerId"`
-	Error       string `json:"error,omitempty"`
-	GameStatus  string `json:"gameStatus,omitempty"`
-	Phase       string `json:"phase,omitempty"`  // Add this field
+	SessionID  string `json:"sessionId"`
+	PlayerID   string `json:"playerId"`
+	Error      string `json:"error,omitempty"`
+	GameStatus string `json:"gameStatus,omitempty"`
+	Phase      string `json:"phase,omitempty"` // Add this field
 }
 
-// Add this to the models
 type ChatHistory struct {
 	Messages []ChatMessage
 	mu       sync.RWMutex
 }
 
-// Add this with the other structs
 type Client struct {
 	conn       *websocket.Conn
 	ID         string
-	MaxBombs   int    // Default: 1, max: 3
-	BombRadius int    
-	Speed      int    
+	MaxBombs   int // Default: 1, max: 3
+	BombRadius int
+	Speed      int
 }
 
-// Package variables
 var (
 	clients      = make(map[string]*Client)
 	mu           sync.Mutex
@@ -114,20 +109,20 @@ var (
 type PowerUpType string
 
 const (
-    BombPowerUp  PowerUpType = "bomb"
-    FlamePowerUp PowerUpType = "flame"
-    SpeedPowerUp PowerUpType = "speed"
+	BombPowerUp  PowerUpType = "bomb"
+	FlamePowerUp PowerUpType = "flame"
+	SpeedPowerUp PowerUpType = "speed"
 )
 
 type PowerUp struct {
-    X    int        `json:"x"`
-    Y    int        `json:"y"`
-    Type PowerUpType `json:"type"`
+	X    int         `json:"x"`
+	Y    int         `json:"y"`
+	Type PowerUpType `json:"type"`
 }
 
 type PowerUpCollected struct {
-    PlayerID string     `json:"playerID"`
-    Type     PowerUpType `json:"type"`
-    X        int        `json:"x"`
-    Y        int        `json:"y"`
+	PlayerID string      `json:"playerID"`
+	Type     PowerUpType `json:"type"`
+	X        int         `json:"x"`
+	Y        int         `json:"y"`
 }

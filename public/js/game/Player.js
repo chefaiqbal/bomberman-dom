@@ -25,7 +25,7 @@ const playerStores = {};
 
 const BOMB_COOLDOWN = 3000; // 3 seconds cooldown
 
-// Add movement cooldown tracking
+
 let lastMoveTime = 0;
 let keyStates = {
     "ArrowLeft": false,
@@ -34,10 +34,10 @@ let keyStates = {
     "ArrowDown": false
 };
 
-// Track if we're in the initial keypress
+
 let isInitialKeypress = true;
 
-// Add these constants at the top of the file
+
 const POWER_UP_EFFECTS = {
     'bomb': {
         maxBombs: 1,
@@ -80,7 +80,7 @@ function updateCharacter(playerID) {
     if (!characterEl || !playerStores[playerID]) return;
 
     const { x, y, direction, frameIndex } = playerStores[playerID].getState();
-    console.log("x:", x, "y:", y, "direction:", direction, "frameIndex:", frameIndex);
+
     characterEl.style.left = `${x}px`;
     characterEl.style.top = `${y}px`;
     characterEl.style.backgroundPosition = `-${frameIndex * frameWidth}px -${direction * frameHeight}px`;
@@ -92,24 +92,24 @@ export function renderPlayer() {
 
     players.sort((a, b) => a.ID.localeCompare(b.ID)); 
 
-    console.log('Sorted Players:', players);
+
 
     return players.map((player, index) => {
         const posIndex = index % startPositions.length;
         const { x, y, color } = startPositions[posIndex];
 
-        // Add x and y to player if not already added
+
         if (!player.x || !player.y) {
             player.x = x;
             player.y = y;
         }
 
-        // Initialize player store if not already done
+
         if (!playerStores[player.ID]) {
             createPlayerStore(player.ID, player.x, player.y);
         }
 
-        console.log(`Player ${player.ID} assigned position: ${player.x}, ${player.y}`);
+
 
         return createElement("div", {
             class: "player",
@@ -147,14 +147,14 @@ function gameLoop() {
             if (x === targetX && y === targetY) {
                 playerStores[playerID].setState({ ...playerStores[playerID].getState(), moving: false });
             }
-            // updateCharacter(playerID);
+
         }
     });
     requestAnimationFrame(gameLoop);
 }
 let lastPressedKey = null;
 
-// Handle key down
+
 function handleKeyDown(e) {
     const states = store.getState();
     const playerID = states.playerName;
@@ -225,9 +225,9 @@ function handleKeyDown(e) {
         const maxBombs = player?.MaxBombs || 1;
         const bombRadius = player?.bombRadius || 2;
       
-        console.log("max bombsss: ", maxBombs);
+
       
-        // Player can place bombs as long as they haven't reached their MaxBombs
+
         if (activeBombs.length < maxBombs) {
           const bombElement = placeBomb(playerState.x, playerState.y, playerID);
           if (bombElement) {
@@ -248,11 +248,11 @@ function handleKeyDown(e) {
     const player = state.players.find(p => p.ID === playerId);
     
     if (detectCollision(x, y, playerId)) {
-      console.log("Cannot place bomb at this position due to collision.");
+
       return null;
     }
   
-    // Check for existing bombs from this player, but no longer block based on previous bombs
+
     const bombElement = createElement("div", {
       class: "bomb",
       "data-owner": playerId,
@@ -268,7 +268,7 @@ function handleKeyDown(e) {
       `
     });
   
-    // Send bomb placement to server
+
     ws.sendMessage("BOMB_PLACE", {
       x: x,
       y: y,
@@ -276,7 +276,7 @@ function handleKeyDown(e) {
       radius: player?.bombRadius || 1
     });
   
-    // Set bomb explosion timeout
+
     setTimeout(() => {
       if (bombElement.parentNode) {
         bombElement.classList.add('exploded');
@@ -284,7 +284,7 @@ function handleKeyDown(e) {
       }
     }, BOMB_COOLDOWN);
   
-    // moveAfterBombPlacement(playerId);
+
   
     return bombElement;
   }
@@ -324,7 +324,7 @@ function moveAfterBombPlacement(playerId) {
         }
     }
 
-    console.log("Player is stuck and can’t move after placing bomb!");
+
 }
 
 function detectCollision(x, y, playerID) {
@@ -333,9 +333,9 @@ function detectCollision(x, y, playerID) {
     const players = state.players;
     if (!map) return true;
 
-    // Validate coordinates
+
     if (isNaN(x) || isNaN(y)) {
-        console.log("Invalid coordinates:", x, y);
+
         return true;
     }
 
@@ -353,7 +353,7 @@ function detectCollision(x, y, playerID) {
     const powerUpElement = detectPowerUpCollision(x, y);
     if (powerUpElement) {
         collectPowerUp(playerID, powerUpElement);
-        console.log(`Player ${playerID} collected power-up.`);
+
         return false;
     }
 
@@ -368,7 +368,7 @@ function detectCollision(x, y, playerID) {
         const bombTileY = Math.floor(bombY / tileSize);
 
         if (playerTileX === bombTileX && playerTileY === bombTileY) {
-            console.log(`Collision with bomb at (${bombX}, ${bombY})`);
+
             return true;
         }
     }
@@ -398,7 +398,7 @@ function updatePlayerPose() {
             throw new Error('Store is not initialized.');
         }
 
-        // Check for refresh flag on page load
+
         const wasRefreshing = localStorage.getItem('gameRefreshing');
         if (wasRefreshing === 'true') {
             localStorage.removeItem('gameRefreshing');
@@ -423,7 +423,7 @@ function updatePlayerPose() {
                             });
                             updateCharacter(player.ID);  
                         } else {
-                            console.log(`Collision detected for player ${player.ID} at (${player.x}, ${player.y})`);
+
                         }
                     }
                 }
@@ -443,7 +443,7 @@ export function handleBombExplosion(x, y, radius) {
         render(explosion, mapElement);
     });
 
-    // Remove explosions after animation
+
     setTimeout(() => {
         document.querySelectorAll(".explosion").forEach(el => {
             el.remove();
@@ -481,9 +481,9 @@ function collectPowerUp(playerID, powerUpElement) {
     const x = parseInt(powerUpElement.style.left);
     const y = parseInt(powerUpElement.style.top);
 
-    console.log(`Player ${playerID} collecting power-up -> Type: ${powerUpType}, X: ${x}, Y: ${y}`);
 
-    // Send collection message to server
+
+
     ws.sendMessage("POWER_UP_COLLECTED", {
         playerID,
         type: powerUpType,
@@ -491,19 +491,19 @@ function collectPowerUp(playerID, powerUpElement) {
         y: y
     });
 
-    console.log(`Sent power-up collection event to server for Player: ${playerID}`);
 
-    // Remove the power-up element
+
+
     powerUpElement.remove();
-    console.log(`Power-up removed from DOM -> Type: ${powerUpType}, X: ${x}, Y: ${y}`);
 
-    // Visual feedback
+
+
     showPowerUpEffect(powerUpType, playerID);
-    console.log(`Visual effect triggered for power-up: ${powerUpType}`);
+
 }
 
 
-// Add visual feedback function
+
 function showPowerUpEffect(type, playerID) {
     const player = document.querySelector(`.player[data-name="${playerID}"]`);
     if (player) {
@@ -524,7 +524,7 @@ function showPowerUpEffect(type, playerID) {
     }
 }
 
-// Make sure to export the placeBomb function
+
 export { placeBomb };
 
 addEvent(window, 'beforeunload', function(event) {

@@ -4,7 +4,7 @@ const BOMB_TIMER = 3000; // 3 seconds
 const EXPLOSION_DURATION = 1000; // 1 second
 const BOMB_RADIUS = 2; // How many tiles the explosion reaches
 
-// Updated sprite configuration
+
 const explosionFrameWidth = 94;  // Width of each frame
 const explosionFrameHeight = 94; // Height of each frame
 const explosionFrameCount = 5;   // We have 5 explosion images
@@ -18,7 +18,7 @@ const explosionImages = [
 
 export function createExplosion(x, y, radius) {
     try {
-        console.log('Creating explosion at:', x, y, 'with radius:', radius);
+
         const explosions = [];
         const directions = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
         

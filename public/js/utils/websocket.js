@@ -1,5 +1,4 @@
 import { createElement, render, createStore } from "../core/index.js";
-import { createExplosion } from "../game/Bomb.js";  // Add this import
 
 export class WebSocketService {
     constructor(store, router) {
@@ -11,13 +10,13 @@ export class WebSocketService {
     }
     
     setupWebSocket() {
-        this.ws = new WebSocket(`ws://localhost:8080/ws`);
+        this.ws = new WebSocket(`ws://10.1.200.40:8081/ws`);
         
-        // Check for existing session
+
         const session = localStorage.getItem('gameSession');
         if (session) {
             const sessionData = JSON.parse(session);
-            // Set initial state but don't navigate yet
+
             this.store.setState({
                 ...this.store.getState(),
                 playerName: sessionData.playerID,
@@ -50,11 +49,10 @@ export class WebSocketService {
     
     setupEventHandlers() {
         this.ws.onopen = () => {
-            console.log("WebSocket connection established.");
             const session = localStorage.getItem('gameSession');
             if (session) {
                 const sessionData = JSON.parse(session);
-                // Attempt to revalidate the session
+
                 this.authenticate(sessionData.playerID);
             }
         };
@@ -65,47 +63,40 @@ export class WebSocketService {
         };
 
         this.ws.onclose = (event) => {
-            console.log("WebSocket connection closed:", event);
             
             const state = this.store.getState();
-            // Check if we're in an active game
+
             if (state.gameStarted && state.playerName) {
-                console.log(`Player ${state.playerName} disconnected during active game`);
-                // Send a message that this player has lost (if possible)
                 if (this.ws.readyState === WebSocket.OPEN) {
                     this.sendMessage('PLAYER_LOST', { playerID: state.playerName });
                 }
                 
-                // Set local state to indicate player lost due to refresh/disconnect
+
                 localStorage.setItem('gameDisconnected', 'true');
                 
-                // Stop reconnection attempts for game disconnects
+
                 this.reconnectAttempts = this.maxReconnectAttempts;
                 this.clearSession();
                 return;
             }
             
-            // On refresh or temporary disconnection, try to reconnect
             if (this.reconnectAttempts < this.maxReconnectAttempts) {
                 this.reconnectAttempts++;
-                console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
                 setTimeout(() => this.setupWebSocket(), 1000);
             } else {
-                // Only clear session if we've exhausted reconnection attempts
+
                 this.clearSession();
             }
         };
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log("Received WebSocket message:", data);
             if (data.status === "wait" && data.redirect) {
-                console.log("Redirecting player to", data.redirect);
                 this.router.navigate("/wait");
                 return;
             }
             switch (data.type) {
                 case 'CONNECTION_SUCCESS':
-                    // Handle initial connection
+
                     if (this.store.getState().reconnecting) {
                         const session = localStorage.getItem('gameSession');
                         if (session) {
@@ -164,7 +155,6 @@ export class WebSocketService {
                     if (powerUpElement) {
                         powerUpElement.remove();
                         spawnedPowerUps.delete(`${x},${y}`);
-                        console.log(`Power-up at (${x}, ${y}) removed.`);
                     } else {
                         console.error(`Power-up element at (${x}, ${y}) not found.`);
                     }
@@ -180,23 +170,23 @@ export class WebSocketService {
                         this.store.setState({
                             ...this.store.getState(),
                             gameInProgress: true,
-                            gamePhase: data.data.phase, // Fix typo: gamePhasee -> gamePhase
-                            gameMessage: data.data.message // Add message to state
+                            gamePhase: data.data.phase, 
+                            gameMessage: data.data.message // add message to state
                         });
                         
-                        // Clear any existing session
+
                         localStorage.removeItem('gameSession');
                         
-                        // Navigate to appropriate screen
+
                         this.router.navigate('/game-in-progress');
                         
-                        // Stop reconnection attempts
-                        this.maxReconnectAttempts = 0;
+                        
+                        this.maxReconnectAttempts = 0;// stooop reconnection attempts
                     }
                     break;
                 case 'GAME_RESET':
                     this.clearSession();
-                    window.location.reload(); // Force complete refresh
+                    window.location.reload(); 
                     break;
                 case 'GAME_WINNER':
                     this.handleGameWinner(data.data);
@@ -209,7 +199,6 @@ export class WebSocketService {
     
     sendMessage(type, payload) {
         if (this.ws.readyState === WebSocket.OPEN) {
-            console.log("Sending message:", type, payload);
             const message = {
                 msgType: type.toUpperCase(),
                 msg: payload
@@ -225,15 +214,13 @@ export class WebSocketService {
         const players = state.players.map(player => {
             if (player.ID === ID.ID) {
                 const updatedLives = Math.max(player.lives - 1, 0); // Prevent negative lives
-                console.log(`Player ${ID.ID} took damage! Lives left: ${updatedLives}`);
     
                 if (updatedLives === 0) {
-                    console.log(`Player ${ID.ID} has lost the game!`);
                     
                     this.sendMessage('PLAYER_LOST', { playerID: ID.ID });
                         if (player.ID === this.store.getState().playerName) {
                         this.router.navigate('/lose');
-                        // Clear session after 5 seconds
+
                         setTimeout(() => {
                             this.clearSession();
                             this.router.navigate('/');
@@ -246,28 +233,22 @@ export class WebSocketService {
             return player;
         });
     
-        // Update the state
+
         this.store.setState({
             ...state,
             players
         });
     
-        console.log("after hit: ", this.store.getState());
     
-        // Check for a winner (only one player left with lives > 0)
-        const alivePlayers = players.filter(player => player.lives > 0);
+        const alivePlayers = players.filter(player => player.lives > 0);      // check for a winner
         if (alivePlayers.length === 1) {
             const winner = alivePlayers[0];
-            console.log(`Player ${winner.ID} has won the game!`);
             
-            // Notify the server about the winner
             this.sendMessage('PLAYER_WON', { playerID: winner.ID });
     
-            // Navigate the winning player to the win route
             if (winner.ID === this.store.getState().playerName) {
                 this.router.navigate('/win');
-                // Clear session after 5 seconds
-                setTimeout(() => {
+                setTimeout(() => { // session clearing 
                     this.clearSession();
                     this.router.navigate('/');
                 }, 5000);
@@ -284,9 +265,7 @@ export class WebSocketService {
             console.error("Invalid coordinates received:", x, y);
             return;
         }
-        
-        console.log(`Player ${playerName} moved ${direction} to (${x}, ${y}) frameIndex: ${frameIndex}`);
-    
+            
         const state = this.store.getState();
         const players = state.players.map(player => 
             player.ID === playerName ? { ...player, x, y, frameIndex,direction } : player
@@ -297,11 +276,9 @@ export class WebSocketService {
             players
         });
 
-        console.log("Updated state:", this.store.getState());
     }
         
     handelMap(map) {
-        console.log("Updating map:", map);
         spawnedPowerUps.clear(); 
         this.store.setState({
             ...this.store.getState(),
@@ -310,7 +287,6 @@ export class WebSocketService {
     }    
     
     handleChatMessage(msg) {
-        console.log("Received chat message:", msg);
         const state = this.store.getState();
         const messages = [...(state.messages || []), msg];
         
@@ -321,7 +297,6 @@ export class WebSocketService {
     }
     
     handlePlayerUpdate(players) {
-        console.log("Updating players list", players);
         const currentState = this.store.getState();
     
         const updatedPlayers = players.map(player => ({
@@ -336,15 +311,13 @@ export class WebSocketService {
             reconnecting: false
         });
     
-        // Navigate to lobby if not already there
-        if (!currentState.gameStarted && updatedPlayers && updatedPlayers.length > 0) {
+        if (!currentState.gameStarted && updatedPlayers && updatedPlayers.length > 0) { // navigate to lobby
             this.router.navigate('/lobby');
         }
     }
 
     
     handleGameStart(data) {
-        console.log("Game start received");
         const currentState = this.store.getState();
         
         this.store.setState({
@@ -354,17 +327,16 @@ export class WebSocketService {
             gameStarted: true
         });
 
-        // Only navigate if we have a map
-        if (currentState.map) {
+        
+        if (currentState.map) {// onley navigate if we have a map
             this.router.navigate('/game');
         }
     }
     
     handleTimerUpdate(data) {
-        console.log("Timer update received:", data);
         const state = this.store.getState();
         
-        // Update timer state
+
         this.store.setState({
             ...state,
             gameStartTimer: data.timeLeft,
@@ -372,16 +344,14 @@ export class WebSocketService {
             lobbyPhase: data.phase
         });
 
-        // Force re-render of lobby when phase changes
         if (data.phase !== state.lobbyPhase) {
             this.router.navigate('/lobby');
         }
     }
     
     handleGameState(data) {
-        console.log("Game state received:", data);
         
-        // Update the store with the full game state
+
         this.store.setState({
             ...this.store.getState(),
             gameStartTimer: data.timeLeft,
@@ -393,16 +363,15 @@ export class WebSocketService {
             reconnecting: false
         });
 
-        // If we're reconnecting and have players, stay in lobby
+
         if (this.store.getState().reconnecting && data.players && data.players.length > 0) {
             this.router.navigate('/lobby');
         }
     }
     
     handleAuthResponse(data) {
-        console.log("Auth response:", data);
         
-        // Check for game disconnect flag
+
         const wasDisconnected = localStorage.getItem('gameDisconnected');
         if (wasDisconnected === 'true') {
             localStorage.removeItem('gameDisconnected');
@@ -415,7 +384,6 @@ export class WebSocketService {
         }
         
         if (data.error) {
-            console.log("Auth error:", data.error);
             if (data.gameStatus === "in_progress") {
                 this.store.setState({
                     ...this.store.getState(),
@@ -431,7 +399,7 @@ export class WebSocketService {
         }
 
         if (data.sessionId && data.playerId) {
-            // Reset reconnect attempts on successful auth
+
             this.reconnectAttempts = 0;
             
             localStorage.setItem('gameSession', JSON.stringify({
@@ -447,7 +415,6 @@ export class WebSocketService {
                 reconnecting: false
             });
             
-            // After authentication, join the game
             this.sendMessage('PLAYER_JOIN', {
                 id: data.playerId,
                 x: 0,
@@ -455,7 +422,7 @@ export class WebSocketService {
                 lives: 3
             });
         } else {
-            // Only clear session if auth explicitly fails
+
             this.clearSession();
         }
     }
@@ -469,7 +436,7 @@ export class WebSocketService {
         const mapElement = document.querySelector(".map");
         if (!mapElement) return;
 
-        // Create and render bomb element
+
         const bombElement = document.createElement('div');
         bombElement.className = 'bomb';
         bombElement.style.cssText = `
@@ -490,7 +457,7 @@ export class WebSocketService {
         const EXPLOSION_DURATION = 1000;
         const { BombX, BombY, Radius, Destroyed } = explosionData;
         
-        // Remove bomb element
+
         const bombs = document.querySelectorAll('.bomb');
         bombs.forEach(bomb => {
             const bombX = parseInt(bomb.style.left) - 5;
@@ -507,7 +474,7 @@ export class WebSocketService {
         const explosionTiles = new Set();
         const directions = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
 
-        // Handle destroyed tiles first
+
         Destroyed.forEach(({X, Y}) => {
             const tileElement = mapElement.children[Y * 15 + X];
             if (tileElement) {
@@ -516,20 +483,20 @@ export class WebSocketService {
             }
         });
 
-        // Process explosions direction by direction
+
         directions.forEach(([dx, dy]) => {
             let blockedPath = false;
             for (let i = 0; i <= Radius && !blockedPath; i++) {
                 const tileX = Math.floor((BombX + (dx * i * 50)) / 50);
                 const tileY = Math.floor((BombY + (dy * i * 50)) / 50);
 
-                // Stop if we hit a solid wall
+
                 if (map?.[tileY]?.[tileX] === 1) {
                     blockedPath = true;
                     break;
                 }
 
-                // Check for destructible wall
+
                 if (map?.[tileY]?.[tileX] === 2) {
                     const wasDestroyed = Destroyed.some(d => d.X === tileX && d.Y === tileY);
                     if (wasDestroyed) {
@@ -540,7 +507,7 @@ export class WebSocketService {
                     break;
                 }
 
-                // Add explosion tile and create animation
+
                 explosionTiles.add(`${tileX},${tileY}`);
                 const explosion = document.createElement('div');
                 explosion.className = 'explosion';
@@ -571,7 +538,7 @@ export class WebSocketService {
             }
         });
 
-        // Check for player damage
+
         const players = this.store.getState().players;
         players.forEach(player => {
             const playerTileX = Math.floor(player.x / 50);
@@ -579,7 +546,6 @@ export class WebSocketService {
             const playerTileKey = `${playerTileX},${playerTileY}`;
 
             if (explosionTiles.has(playerTileKey)) {
-                console.log(`Player ${player.ID} hit by explosion at tile ${playerTileKey}!`);
                 this.PlayerHit(player.ID);
             }
         });
@@ -589,7 +555,7 @@ export class WebSocketService {
     }
 }
 
-// Add this helper method to the WebSocketService class
+
 createExplosionAnimation(x, y, mapElement) {
     const explosion = document.createElement('div');
     explosion.className = 'explosion';
@@ -631,7 +597,7 @@ createExplosionAnimation(x, y, mapElement) {
             lobbyPhase: data.phase
         });
         
-        // Re-render lobby with new phase
+
         this.router.navigate('/lobby');
     }
 
@@ -645,7 +611,6 @@ createExplosionAnimation(x, y, mapElement) {
     
     handlePowerUp(powerUpData) {
         const { x, y, type } = powerUpData;
-        console.log(`Power-up received at (${x}, ${y}): ${type}`);
     
         const powerUpElement = createElement("div", {
             class: `power-up ${type}`,  "data-x": x,
@@ -668,7 +633,6 @@ createExplosionAnimation(x, y, mapElement) {
     }
 
     handlePowerUpCollected(powerUpData) {
-        console.log("Power-up collected data:", powerUpData);
         const currentState = this.store.getState();
         
         const updatedPlayers = currentState.players.map(player => {
@@ -678,15 +642,12 @@ createExplosionAnimation(x, y, mapElement) {
                 switch(powerUpData.type) {
                     case 'bomb':
                         newStats.MaxBombs = (newStats.MaxBombs || 1) + 1;
-                        console.log(`Increased MaxBombs to ${newStats.MaxBombs}`);
                         break;
                     case 'flame':
                         newStats.bombRadius = (newStats.bombRadius || 1) + 1;
-                        console.log(`Increased bombRadius to ${newStats.bombRadius}`);
                         break;
                     case 'speed':
                         newStats.speed = (newStats.speed || 5) + 2;
-                        console.log(`Increased speed to ${newStats.speed}`);
                         break;
                 }
                 
@@ -700,14 +661,12 @@ createExplosionAnimation(x, y, mapElement) {
             players: updatedPlayers
         });
     
-        console.log("Updated state:", this.store.getState());
     }
     
     
     
     
     handleLostPlayer(lostPlayerData) {
-        console.log("Player lost:", lostPlayerData);
         const state = this.store.getState();
         const players = state.players.filter(player => player.ID !== lostPlayerData.playerID);
     
@@ -716,26 +675,24 @@ createExplosionAnimation(x, y, mapElement) {
             players
         });
     
-        // Remove the player from the UI
+
         const lostPlayerElement = document.querySelector(`.player[data-name="${lostPlayerData.playerID}"]`);
         if (lostPlayerElement) {
             lostPlayerElement.remove();
         }
     
-        console.log(`Player ${lostPlayerData.playerID} has been removed from the game.`);
         
-        // Check if there's only one player left (winner)
+
         if (players.length === 1) {
             const winner = players[0];
-            console.log(`Player ${winner.ID} has won the game by default!`);
             
-            // Notify the server about the winner
+
             this.sendMessage('PLAYER_WON', { playerID: winner.ID });
             
-            // Navigate the winning player to the win route
+
             if (winner.ID === state.playerName) {
                 this.router.navigate('/win');
-                // Clear session after 5 seconds
+
                 setTimeout(() => {
                     this.clearSession();
                     this.router.navigate('/');
@@ -745,7 +702,7 @@ createExplosionAnimation(x, y, mapElement) {
     }
 
     handleGameWinner(data) {
-        console.log("Game winner:", data);
+
         const state = this.store.getState();
         
         if (data.playerID === state.playerName) {
@@ -754,7 +711,7 @@ createExplosionAnimation(x, y, mapElement) {
             this.router.navigate('/lose');
         }
 
-        // Clear session after 5 seconds
+
         setTimeout(() => {
             this.clearSession();
             this.router.navigate('/');
@@ -777,7 +734,7 @@ function spawnPowerUp(x, y, webSocketService) {
 
     if (Math.random() > 0.9) { 
         const type = Object.keys(webSocketService.powerUps)[Math.floor(Math.random() * Object.keys(webSocketService.powerUps).length)];
-        console.log(`Decided power-up: ${type} at (${x}, ${y})`);
+
 
         spawnedPowerUps.add(key);  
 

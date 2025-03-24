@@ -10,7 +10,7 @@ function createPlayerList(players, store, ID) {
         if (state !== previousState) {
             previousState = state;
 
-            // Only include players that exist in current state
+
             const currentPlayers = players.filter(player => 
                 state.players.some(p => p.ID === player.name)
             );
@@ -25,7 +25,7 @@ function createPlayerList(players, store, ID) {
                     const playerState = state.players.find(p => p.ID === player.name);
                     const lives = playerState ? playerState.lives : 0;
                     
-                    // Don't display players with no lives
+
                     if (lives <= 0) return null;
             
                     return createElement('div',
@@ -82,9 +82,9 @@ function createPlayerLives(ID, store) {
         const state = store.getState();
         const player = state.players.find(player => player.ID === ID);
 
-        // Check if player exists in the state
+
         if (!player) {
-            // Player no longer exists, remove their lives display
+
             const existingElement = document.querySelector('.player-lives');
             if (existingElement) {
                 existingElement.remove();
@@ -93,12 +93,12 @@ function createPlayerLives(ID, store) {
         }
 
         const playerLives = player.lives;
-        console.log("Player Lives: ", playerLives);
+
 
         if (previousLives !== playerLives) {
             previousLives = playerLives; 
 
-            // Don't display lives if player has none
+
             if (playerLives <= 0) {
                 const existingElement = document.querySelector('.player-lives');
                 if (existingElement) {
@@ -141,7 +141,7 @@ export function GameBoard({ store, router, ws }) {
     const state = store.getState();
     let chatVisible = false;
     
-    // Filter to only include players that exist in the current state
+
     const players = [
         { name: state.playerName },
         ...(state.players || [])
