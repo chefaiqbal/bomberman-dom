@@ -177,13 +177,18 @@ func HandelJoin(msg json.RawMessage, clients *map[string]*Client, conn *websocke
 		},
 	})
 
+
+	if len(*clients) == 4 && CurrentPhase == game.PhaseWaiting && gameTimer.GetState()["isActive"].(bool) {
+
+		go gameTimer.TransitionToPregame()
+		log.Printf("4 players joined, immediately transitioning to pregame phase")
+	} else if len(*clients) >= 2 && !gameTimer.GetState()["isActive"].(bool) && !GameStarted {
+		go gameTimer.Start()
+	}
+
 	mu.Unlock()
 
 	broadcastMessage("PLAYER_JOIN", clientList)
-
-	if len(*clients) >= 2 && !gameTimer.GetState()["isActive"].(bool) && !GameStarted {
-		go gameTimer.Start()
-	}
 }
 
 func spawnPowerUp(x, y int) {

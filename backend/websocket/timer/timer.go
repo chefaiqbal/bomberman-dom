@@ -152,3 +152,30 @@ func (t *GameTimer) GetState() map[string]interface{} {
 		"phase":    t.phase,
 	}
 }
+
+
+func (t *GameTimer) TransitionToPregame() {
+	t.mu.Lock()
+	if t.phase != game.PhaseWaiting || !t.isActive {
+		t.mu.Unlock()
+		return
+	}
+
+	t.timeLeft = 10 
+	t.phase = game.PhasePregame
+	t.mu.Unlock()
+
+	if t.onPhaseChange != nil {
+		t.onPhaseChange(game.PhasePregame)
+	}
+
+	t.broadcast("LOBBY_PHASE_CHANGE", map[string]interface{}{
+		"phase": game.PhasePregame,
+	})
+
+	t.broadcast("TIMER_UPDATE", map[string]interface{}{
+		"timeLeft": 10,
+		"isActive": true,
+		"phase":    game.PhasePregame,
+	})
+}
