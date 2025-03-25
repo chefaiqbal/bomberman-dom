@@ -14,6 +14,7 @@ A multiplayer Bomberman game built with a custom vanilla JavaScript framework an
 - Destructible Environment - Strategically destroy walls to reach opponents
 - Chat System - Communicate with other players in real-time
 - Lobby System - Wait for players and see when game is starting
+- Auto IP Detection - Automatically detects and uses your machine's IP address
 
 ## 🛠️ Technology Stack
 <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black">
@@ -55,20 +56,44 @@ bomberman-dom/
 │   ├── server/
 │   │   └── main.go        # HTTP server & static file serving
 │   ├── websocket/
-│   │   ├── socket.go      # WebSocket connections & message handling
 │   │   ├── game.go        # Game logic & state management
+│   │   ├── game/          # Game phase constants
+│   │   │   └── phases.go  # Game phase definitions
 │   │   ├── models.go      # Data structures
 │   │   ├── session.go     # Session management
+│   │   ├── socket.go      # WebSocket handling
 │   │   └── timer/         # Game timing system
-│   └── go.mod             # Go module definition
+│   │       └── timer.go   # Timer implementation
+│   ├── go.mod             # Go module definition
+│   └── go.sum             # Go module checksums
 │
 ├── public/
 │   ├── js/
 │   │   ├── app.js         # Main application entry point
-│   │   ├── core/          # Framework core
 │   │   ├── components/    # UI components
+│   │   │   ├── Banners.js             # Win/lose screens
+│   │   │   ├── Chat.js                # Chat component
+│   │   │   ├── ChatDisplay.js         # Chat messages UI
+│   │   │   ├── ChatInput.js           # Chat input handling
+│   │   │   ├── GameBoard.js           # Main game board
+│   │   │   ├── GameInProgress.js      # Game status screen
+│   │   │   ├── GameTimer.js           # Timer display
+│   │   │   ├── Lobby.js               # Lobby interface
+│   │   │   ├── NicknameForm.js        # Player name input
+│   │   │   ├── NicknameScreen.js      # Initial player screen
+│   │   │   └── PreGameLobby.js        # Pre-game state UI
+│   │   ├── core/          # Framework core
+│   │   │   ├── dom.js                 # Virtual DOM implementation
+│   │   │   ├── eventManagement.js     # Event handling system
+│   │   │   ├── index.js               # Core exports
+│   │   │   ├── router.js              # Client-side routing
+│   │   │   └── state.js               # State management
 │   │   ├── game/          # Game logic
+│   │   │   ├── Bomb.js                # Bomb mechanics
+│   │   │   ├── Map.js                 # Map generation & rendering
+│   │   │   └── Player.js              # Player movement & actions
 │   │   └── utils/         # Utility functions
+│   │       └── websocket.js           # WebSocket client
 │   │
 │   ├── static/
 │   │   └── img/           # Game assets & sprites
@@ -77,6 +102,8 @@ bomberman-dom/
 │   │   └── main.css       # Custom CSS styles
 │   │
 │   └── index.html         # Main HTML entry point
+│
+└── README.md              # Project documentation
 ```
 
 ## 📊 Data Flow
@@ -115,21 +142,22 @@ git clone https://learn.reboot01.com/git/aaljuffa/bomberman-dom.git
 cd bomberman-dom
 ```
 
-2. Install Go dependencies:
+2. Start the server:
 ```
-cd backend
-go mod download
-```
-
-3. Start the server:
-```
-go run server/main.go
+cd backend/server
+go run main.go
 ```
 
-4. Open your browser and navigate to:
+3. Open your browser and navigate to the IP address shown in the console:
 ```
-http://xxxxxxxxx
+Server starting on http://192.168.x.x:8081
 ```
+
+### Network Setup
+- The server automatically detects your machine's outbound IP address
+- The client automatically connects to the server's IP address
+- No manual IP configuration required
+- For LAN play, ensure all devices are on the same network
 
 ## 🕹️ How to Play
 1. Enter your nickname (3-15 characters)

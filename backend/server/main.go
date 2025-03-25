@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +16,42 @@ import (
 
 	ws "bomber/websocket"
 )
+
+
+func getOutboundIP() string {
+	
+	defaultIP := "127.0.0.1"
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return defaultIP
+	}
+
+	for _, iface := range interfaces {
+		
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagMulticast == 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			switch v := addr.(type) {
+			case *net.IPNet:
+				
+				if v.IP.IsLoopback() || v.IP.To4() == nil {
+					continue
+				}
+				return v.IP.String()
+			}
+		}
+	}
+
+	return defaultIP
+}
 
 func init() {
 	mime.AddExtensionType(".js", "application/javascript")
@@ -82,6 +119,7 @@ func main() {
 	http.Handle("/", spa)
 
 	port := ":8081"
+	hostIP := getOutboundIP()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -92,7 +130,7 @@ func main() {
 	}
 
 	go func() {
-		fmt.Printf("Server starting on http://10.1.200.40%s\n", port)
+		fmt.Printf("Server starting on http://%s%s\n", hostIP, port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("Server failed to start:", err)
 		}

@@ -10,7 +10,9 @@ export class WebSocketService {
     }
     
     setupWebSocket() {
-        this.ws = new WebSocket(`ws://10.1.200.40:8081/ws`);
+        
+        const hostname = window.location.hostname || "localhost";
+        this.ws = new WebSocket(`ws://${hostname}:8081/ws`);
         
 
         const session = localStorage.getItem('gameSession');
