@@ -138,7 +138,7 @@ bomberman-dom/
 ### Installation
 1. Clone the repository:
 ```
-git clone https://learn.reboot01.com/git/aaljuffa/bomberman-dom.git
+git clone https://github.com/chefaiqbal/bomberman-dom.git
 cd bomberman-dom
 ```
 
